@@ -96,6 +96,15 @@ for t in itertools.product(*iterables):
         min_loss = res.fun
         best_params = res.x
 
+print('N')
+print(N_best)
+print('')
+print('sigma')
+print(sigma_best)
+print('')
+print('rho')
+print(rho_best)
+print('')
 print('W')
 print(best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best)))
 print('')
