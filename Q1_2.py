@@ -12,16 +12,21 @@ train, test = train_test_split(df, test_size=0.25, random_state=1939671)
 X = np.array(train[['x1', 'x2']])
 y = np.array(train['y'])
 
-def rbf(x_i, c, sigma):
+def rbf(X, c, sigma):
     """
     This function is only applied for a single observation
     x belongs to R^2
     c belongs to R^{2, 10}
     return R^10, 186
     """
-    return np.exp(-(np.linalg.norm((x_i - c.T), axis=1)/sigma)**2)
+    minus_matrix = []
+    for i in range(len(c.T)):
+        minus_matrix.append(X - c.T[i])
+    minus_matrix = np.array(minus_matrix)
 
-def feedforward(x_i, c, v, sigma):
+    return np.exp(-(np.linalg.norm(minus_matrix, axis=2)/sigma)**2)
+
+def feedforward(X, c, v, sigma):
     """
     This function is only applied for a single observation
     x belongs to R^2
@@ -30,7 +35,7 @@ def feedforward(x_i, c, v, sigma):
     return float
     """
     
-    pred = np.dot(rbf(x_i, c, sigma), v)
+    pred = np.dot(rbf(X, c, sigma).T, v)
     return pred
     
 def loss(x0, funcArgs):
@@ -45,9 +50,7 @@ def loss(x0, funcArgs):
     v = x0[int(X.shape[1]*N):]
 
     P = len(y)
-    sum_ = 0
-    for i in range(P):
-        sum_ += (feedforward(X[i], c, v, sigma) - y[i])**2
+    sum_ = np.sum((feedforward(X, c, v, sigma) - y)**2)
     norm = np.linalg.norm(x0)
     res = (sum_*P**(-1) + rho*norm)*0.5 
     
@@ -62,17 +65,15 @@ def feedforwardeval(x_i_1, x_i_2, c, v, sigma):
     return float
     """
     x_i = np.array([x_i_1, x_i_2])
-    pred = np.dot(rbf(x_i, c, sigma), v)
+    pred = np.dot(np.exp(-(np.linalg.norm((x_i - c.T), axis=1)/sigma)**2), v)
     return pred
         
-sigma_grid = [1]
-N_grid = [20]
-rho_grid = [0]
+sigma_grid = [0.01, 1, 2]
+N_grid = [10, 20, 30]
+rho_grid = [1e-5, 1e-4, 1e-3]
 
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
-
-Nfeval = 1
 
 def callbackF(Xi):
     global Nfeval
@@ -81,7 +82,7 @@ def callbackF(Xi):
     Nfeval += 1
 
 for t in itertools.product(*iterables):
-
+    Nfeval = 1
     N = t[1]
     c = np.random.randn(X.shape[1], N)
     v = np.random.randn(N)
@@ -95,13 +96,15 @@ for t in itertools.product(*iterables):
 
     funcArgs = [X, y, t[0], t[1], t[2]] 
 
+    print(loss(x0, funcArgs))
+
     res = minimize(loss,
                    x0,
                    args=funcArgs, 
                    method='CG', 
                    tol=1e-6,
                    callback=callbackF,
-                   options={'maxiter':100})
+                   options={'maxiter':500})
                    
     print('')    
     print('Minimal Loss Value', res.fun)
@@ -129,11 +132,11 @@ print('c')
 print(best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best)))
 print('')
 print('v')
-print(best_params[X.shape[1]*N_best+N_best:])
+print(best_params[X.shape[1]*N_best:])
 
 
 c=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
-v=best_params[X.shape[1]*N_best+N_best:]
+v=best_params[X.shape[1]*N_best:]
 sigma=sigma_best
 
 fig = plt.figure(figsize=(12, 8))
@@ -157,5 +160,5 @@ ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1,cmap='viridis', edgecolo
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-ax.set_title('F(x) learnt from MLP')
+ax.set_title('F(x) learnt from RBS')
 plt.show()
