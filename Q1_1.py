@@ -20,7 +20,7 @@ def feedforward(X, W, b, v, sigma):
     
     linear_layer = (np.dot(X, W) + b)
     activation = tanh(linear_layer, sigma)
-    pred = np.dot(linear_layer, v)
+    pred = np.dot(activation, v)
     
     return pred
     
@@ -38,7 +38,7 @@ def loss(x0, funcArgs):
     v = x0[int(X.shape[1]*N+N):]
 
     P = len(y)
-    norm = np.linalg.norm(np.concatenate((b, W, v), axis=None))
+    norm = np.linalg.norm(x0)
     pred = feedforward(X, W, b, v, sigma)
     res = ((np.sum((pred-y)**2))*P**(-1) + rho*norm)*0.5    
     
@@ -49,23 +49,23 @@ def feedforward_eval(x1, x2, W, b, v, sigma):
     X = np.array([x1, x2])
     linear_layer = (np.dot(X, W) + b)
     activation = tanh(linear_layer, sigma)
-    pred = np.dot(linear_layer, v)
+    pred = np.dot(activation, v)
     
     return pred
     
-sigma_grid = np.linspace(0, 10, 5)
-N_grid = [1, 5, 10, 15, 20]
-rho_grid = np.linspace(1e-5, 1e-3, 5)
+sigma_grid = [1]
+N_grid = [20]
+rho_grid = [0]
 
 iterables = [sigma_grid, N_grid, rho_grid]
-min_loss = 100
+min_loss = 10000
 
 for t in itertools.product(*iterables):
 
     N = t[1]
-    W = 1e-4 * np.random.randn(X.shape[1], N)
-    b = np.zeros(N)
-    v = 1e-4 * np.random.randn(N)
+    W = np.random.randn(X.shape[1], N)
+    b = np.random.randn(N)
+    v = np.random.randn(N)
 
     x0 = np.concatenate((W, b, v), axis=None)
     
@@ -81,7 +81,7 @@ for t in itertools.product(*iterables):
                    args=funcArgs, 
                    method='CG', 
                    tol=1e-6,
-                   options={'maxiter':1000})
+                   options={'maxiter':10000})
                    
     print('')    
     print('Minimal Loss Value', res.fun)
