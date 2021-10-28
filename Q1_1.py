@@ -4,6 +4,7 @@ from scipy.optimize import minimize
 from sklearn.model_selection import train_test_split
 import itertools
 import matplotlib.pyplot as plt
+import time
 
 df = pd.read_csv('DATA.csv')
 
@@ -11,6 +12,9 @@ train, test = train_test_split(df, test_size=0.25, random_state=1939671)
 
 X = np.array(train[['x1', 'x2']])
 y = np.array(train['y'])
+
+X_test = np.array(train[['x1', 'x2']])
+y_test = np.array(train['y'])
 
 def tanh(s, sigma):
     prod = 2*sigma*s
@@ -44,7 +48,15 @@ def loss(x0, funcArgs):
     
     return res
     
-def feedforward_eval(x1, x2, W, b, v, sigma):
+def loss_test(X, y, sigma, N, rho, W, b, v):
+    
+    P = len(y)
+    pred = feedforward(X, W, b, v, sigma)
+    res = ((np.sum((pred-y)**2))*P**(-1))*0.5    
+    
+    return res
+    
+def feedforwardplot(x1, x2, W, b, v, sigma):
     
     X = np.array([x1, x2])
     linear_layer = (np.dot(X, W) + b)
@@ -52,11 +64,52 @@ def feedforward_eval(x1, x2, W, b, v, sigma):
     pred = np.dot(activation, v)
     
     return pred
-    
-sigma_grid = [1]
-N_grid = [20]
-rho_grid = [0]
 
+def train(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000, 
+          tol=1e-5, method='CG', func=loss):
+    
+    x0 = np.concatenate((W_init, b_init, v_init), axis=None)
+    funcArgs = [X, y, sigma, N, rho]
+
+    res = minimize(func,
+                   x0,
+                   args=funcArgs, 
+                   method=method, 
+                   tol=tol,
+                   options={'maxiter':max_iter})    
+    
+    return res
+    
+def plotting(W, b, v, sigma):
+    
+
+    fig = plt.figure(figsize=(12, 8))
+    ax = plt.axes(projection='3d')
+    #create the grid
+    x = np.linspace(-2, 2, 50) 
+    y = np.linspace(-3, 3, 50)
+    X_plot, Y_plot = np.meshgrid(x, y) 
+
+    Z = []
+    for x1 in x:
+        z  = []
+        for x2 in y:
+            z.append(feedforwardplot(x1, x2, W, b, v, sigma))
+        Z.append(z)
+    Z = np.array(Z)
+
+
+    ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
+
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_title('F(x) learnt from MLP')
+    plt.show()
+
+sigma_grid = [0.5, 1, 2]
+N_grid = [2, 5, 10]
+rho_grid = np.linspace(1e-5, 1e-3, 5)
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
 
@@ -66,35 +119,45 @@ for t in itertools.product(*iterables):
     W = np.random.randn(X.shape[1], N)
     b = np.random.randn(N)
     v = np.random.randn(N)
-
-    x0 = np.concatenate((W, b, v), axis=None)
     
     print('===================')
     print('Sigma:', t[0])
     print('N:', t[1])
     print('Rho:', t[2])
 
-    funcArgs = [X, y, t[0], t[1], t[2]] 
-
-    res = minimize(loss,
-                   x0,
-                   args=funcArgs, 
-                   method='CG', 
-                   tol=1e-6,
-                   options={'maxiter':10000})
+    start = time.time()
+    res = train(X, y, sigma=t[0], 
+                N=t[1], rho=t[2], 
+                W_init=W, b_init=b, v_init=v,
+                max_iter=5000, tol=1e-6, 
+                method='CG', func=loss)
+    stop = time.time()
+    
+    res_loss = loss_test(X=X_test, y=y_test, 
+                         sigma=t[0], N=t[1], 
+                         rho=t[2], 
+                         W=res.x[:X.shape[1]*N].reshape((X.shape[1],N)),
+                         b=res.x[X.shape[1]*N:X.shape[1]*N+N],
+                         v=res.x[X.shape[1]*N+N:])
                    
-    print('')    
-    print('Minimal Loss Value', res.fun)
-    print('Num Iterations', res.nit)
-    print('Did it converge?:', res.success)
+    print('')   
+    print('Time required by optimization:', round(stop-start, 1), ' s')
+    print('Validation Loss: ', res_loss)
+    print('Minimal Loss Value: ', res.fun)
+    print('Num Iterations: ', res.nit)
+    print('Did it converge?: ', res.success)
     print('===================')
                    
-    if res.fun < min_loss:
+    if res_loss < min_loss:
         N_best = N
         sigma_best = t[0]
         rho_best = t[2]
         min_loss = res.fun
         best_params = res.x
+
+W=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
+b=best_params[X.shape[1]*N_best:X.shape[1]*N_best+N_best]
+v=best_params[X.shape[1]*N_best+N_best:]
 
 print('N')
 print(N_best)
@@ -106,41 +169,12 @@ print('rho')
 print(rho_best)
 print('')
 print('W')
-print(best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best)))
+print(W)
 print('')
 print('b')
-print(best_params[X.shape[1]*N_best:X.shape[1]*N_best+N_best])
+print(b)
 print('')
 print('v')
-print(best_params[X.shape[1]*N_best+N_best:])
+print(v)
 
-# Plot 3D 
-
-W=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
-b=best_params[X.shape[1]*N_best:X.shape[1]*N_best+N_best]
-v=best_params[X.shape[1]*N_best+N_best:]
-sigma=sigma_best
-
-fig = plt.figure(figsize=(12, 8))
-ax = plt.axes(projection='3d')
-#create the grid
-x = np.linspace(-3, 3, 50) 
-y = np.linspace(-3, 3, 50)
-X_plot, Y_plot = np.meshgrid(x, y) 
-
-Z = []
-for x1 in np.linspace(-3, 3, 50):
-    z  = []
-    for x2 in np.linspace(-3, 3, 50):
-        z.append(feedforward_eval(x1, x2, W, b, v, sigma))
-    Z.append(z)
-Z = np.array(Z)
-
-
-ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
-
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
-ax.set_title('F(x) learnt from MLP')
-plt.show()
+plotting(W, b, v, sigma_best)
