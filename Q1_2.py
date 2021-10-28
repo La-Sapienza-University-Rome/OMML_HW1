@@ -4,6 +4,7 @@ from scipy.optimize import minimize
 from sklearn.model_selection import train_test_split
 import itertools
 import matplotlib.pyplot as plt
+import time
 
 df = pd.read_csv('DATA.csv')
 
@@ -11,6 +12,9 @@ train, test = train_test_split(df, test_size=0.25, random_state=1939671)
 
 X = np.array(train[['x1', 'x2']])
 y = np.array(train['y'])
+
+X_test = np.array(train[['x1', 'x2']])
+y_test = np.array(train['y'])
 
 def rbf(X, c, sigma):
     """
@@ -56,33 +60,68 @@ def loss(x0, funcArgs):
     
     return res
     
-def feedforwardeval(x_i_1, x_i_2, c, v, sigma):
-    """
-    This function is only applied for a single observation
-    x belongs to R^2
-    c belongs to R^{2, 10}
-    v belongs to R^N
-    return float
-    """
+def loss_test(X, y, sigma, N, rho, c, v):
+
+    P = len(y)
+    res = np.sum((feedforward(X, c, v, sigma) - y)**2)*0.5*P**(-1)
+    
+    return res
+    
+def feedforwardplot(x_i_1, x_i_2, c, v, sigma):
     x_i = np.array([x_i_1, x_i_2])
     pred = np.dot(np.exp(-(np.linalg.norm((x_i - c.T), axis=1)/sigma)**2), v)
     return pred
-        
-sigma_grid = [0.01, 1, 2]
-N_grid = [10, 20, 30]
-rho_grid = [1e-5, 1e-4, 1e-3]
+    
+def train(X, y, sigma, N, rho, c_init, 
+          v_init, max_iter=1000, tol=1e-5, method='CG', func=loss):
+    
+    x0 = np.concatenate((c_init, v_init), axis=None)
+    funcArgs = [X, y, sigma, N, rho]
 
+    res = minimize(func,
+                   x0,
+                   args=funcArgs, 
+                   method=method, 
+                   tol=tol,
+                   options={'maxiter':max_iter})    
+    
+    return res
+    
+def plotting(c, v, sigma):
+    
+
+    fig = plt.figure(figsize=(12, 8))
+    ax = plt.axes(projection='3d')
+    #create the grid
+    x = np.linspace(-2, 2, 50) 
+    y = np.linspace(-3, 3, 50)
+    X_plot, Y_plot = np.meshgrid(x, y) 
+
+    Z = []
+    for x1 in x:
+        z  = []
+        for x2 in y:
+            z.append(feedforwardplot(x1, x2, c, v, sigma))
+        Z.append(z)
+    Z = np.array(Z)
+
+
+    ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
+
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_title('F(x) learnt from RBS')
+    plt.show()
+    
+sigma_grid = [0.01, 1, 2]
+N_grid = [2, 5, 10]
+rho_grid = [1e-5, 1e-4, 1e-3]
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
 
-def callbackF(Xi):
-    global Nfeval
-    if Nfeval % 10 == 0: 
-        print(Nfeval, loss(Xi, funcArgs))
-    Nfeval += 1
-
 for t in itertools.product(*iterables):
-    Nfeval = 1
+
     N = t[1]
     c = np.random.randn(X.shape[1], N)
     v = np.random.randn(N)
@@ -94,30 +133,37 @@ for t in itertools.product(*iterables):
     print('N:', t[1])
     print('Rho:', t[2])
 
-    funcArgs = [X, y, t[0], t[1], t[2]] 
-
-    print(loss(x0, funcArgs))
-
-    res = minimize(loss,
-                   x0,
-                   args=funcArgs, 
-                   method='CG', 
-                   tol=1e-6,
-                   callback=callbackF,
-                   options={'maxiter':500})
+    start = time.time()
+    res = train(X, y, sigma=t[0], 
+                N=t[1], rho=t[2], 
+                c_init=c, v_init=v,
+                max_iter=1000, tol=1e-6, 
+                method='CG', func=loss)
+    stop = time.time()
+    
+    res_loss = loss_test(X=X_test, y=y_test, 
+                         sigma=t[0], N=t[1], 
+                         rho=t[2], 
+                         c=res.x[:X.shape[1]*N].reshape((X.shape[1],N)),
+                         v=res.x[X.shape[1]*N:])
                    
     print('')    
+    print('Time required by optimization:', round(stop-start, 1), ' s')
+    print('Validation Loss: ', res_loss)
     print('Minimal Loss Value', res.fun)
     print('Num Iterations', res.nit)
     print('Did it converge?:', res.success)
     print('===================')
                    
-    if res.fun < min_loss:
+    if res_loss < min_loss:
         N_best = N
         sigma_best = t[0]
         rho_best = t[2]
         min_loss = res.fun
         best_params = res.x
+
+c=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
+v=best_params[X.shape[1]*N_best:]
 
 print('N')
 print(N_best)
@@ -129,36 +175,9 @@ print('rho')
 print(rho_best)
 print('')
 print('c')
-print(best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best)))
+print(c)
 print('')
 print('v')
-print(best_params[X.shape[1]*N_best:])
+print(v)
 
-
-c=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
-v=best_params[X.shape[1]*N_best:]
-sigma=sigma_best
-
-fig = plt.figure(figsize=(12, 8))
-ax = plt.axes(projection='3d')
-#create the grid
-x = np.linspace(-3, 3, 50) 
-y = np.linspace(-3, 3, 50)
-X_plot, Y_plot = np.meshgrid(x, y) 
-
-Z = []
-for x1 in np.linspace(-3, 3, 50):
-    z  = []
-    for x2 in np.linspace(-3, 3, 50):
-        z.append(feedforwardeval(x1, x2, c, v, sigma))
-    Z.append(z)
-Z = np.array(Z)
-
-
-ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
-
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_zlabel('z')
-ax.set_title('F(x) learnt from RBS')
-plt.show()
+plotting(c, v, sigma_best)
