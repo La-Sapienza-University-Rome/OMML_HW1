@@ -14,6 +14,10 @@ train, test = train_test_split(df, test_size=0.25, random_state=1939671)
 X = np.array(train[['x1', 'x2']])
 y = np.expand_dims(np.array(train['y']), axis=1)
 
+X_val = np.array(test[['x1', 'x2']])
+y_val = np.expand_dims(np.array(test['y']), axis=1)
+
+
 def tanh(s, sigma):
     prod = 2*sigma*s
     return (np.exp(prod)-1)/(np.exp(prod)+1)
@@ -62,7 +66,7 @@ print('Rho:', RHO)
 
 funcArgs = [X, y, SIGMA, N, RHO] 
 
-trials = 40
+trials = 1
 best_loss = 1000
 
 for _ in tqdm(range(trials)):
@@ -101,6 +105,9 @@ print(v.value.reshape((-1,)))
 print('')
 print('Loss')
 print(best_loss)
+print('')
+print('Loss on Test')
+print(loss(W, b, v, [X_val, y_val, SIGMA, N, RHO]).value)
 
 
 # Plot 3D 
@@ -108,7 +115,7 @@ print(best_loss)
 fig = plt.figure(figsize=(12, 8))
 ax = plt.axes(projection='3d')
 #create the grid
-x = np.linspace(-3, 3, 50) 
+x = np.linspace(-2, 2, 50) 
 y = np.linspace(-3, 3, 50)
 X_plot, Y_plot = np.meshgrid(x, y) 
 
