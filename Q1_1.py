@@ -86,8 +86,8 @@ def plotting(W, b, v, sigma):
     fig = plt.figure(figsize=(12, 8))
     ax = plt.axes(projection='3d')
     #create the grid
-    x = np.linspace(-2, 2, 50) 
-    y = np.linspace(-3, 3, 50)
+    x = np.linspace(-3, 3, 50) 
+    y = np.linspace(-2, 2, 50)
     X_plot, Y_plot = np.meshgrid(x, y) 
 
     Z = []
@@ -107,8 +107,8 @@ def plotting(W, b, v, sigma):
     ax.set_title('F(x) learnt from MLP')
     plt.show()
 
-sigma_grid = [0.5, 1, 2]
-N_grid = [2, 5, 10]
+sigma_grid = [1]
+N_grid = [10]
 rho_grid = np.linspace(1e-5, 1e-3, 5)
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
