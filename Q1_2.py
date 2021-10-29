@@ -93,8 +93,8 @@ def plotting(c, v, sigma):
     fig = plt.figure(figsize=(12, 8))
     ax = plt.axes(projection='3d')
     #create the grid
-    x = np.linspace(-2, 2, 50) 
-    y = np.linspace(-3, 3, 50)
+    x = np.linspace(-3, 3, 50) 
+    y = np.linspace(-2, 2, 50)
     X_plot, Y_plot = np.meshgrid(x, y) 
 
     Z = []
