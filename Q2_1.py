@@ -103,8 +103,8 @@ def feedforward_eval(x1:float, x2:float, W:np.ndarray, b:np.ndarray, v:cvx.Varia
 # Fix the values of the hyperparameters according to the results of Q1_1
 # TODO: make these definitions dynamic
 SIGMA = 1
-N = 20
-RHO = 0
+N = 10
+RHO = 0.001
 
     
 print('===================')
@@ -118,7 +118,7 @@ funcArgs = [X, y, SIGMA, N, RHO]
 
 # Set the number of random trials for W and b
 trials = 50
-best_loss = 1000
+best_val_loss = 1000
 
 
 # Iterate /trials/ times  
@@ -139,8 +139,11 @@ for _ in tqdm(range(trials)):
     cvx_problem.solve(solver=cvx.SCS, verbose=False, eps=1e-6, max_iters=10000)
     
     # If the loss value is less than the current best value, save the parameters and update the best value
-    if cvx_problem.value < best_loss:
-        best_loss = cvx_problem.value
+    current_train_loss = cvx_problem.value
+    current_val_loss = loss(W, b, v, [X_test, y_test, SIGMA, N, RHO]).value
+    if current_val_loss < best_val_loss:
+        best_train_loss = current_train_loss
+        best_val_loss = current_val_loss
         best_W = W
         best_b = b
 
@@ -167,11 +170,11 @@ print('v')
 print(v.value.reshape((-1,)))
 print('')
 print('Loss')
-print(best_loss)
+print(best_train_loss)
 print('')
 # TODO: compute the loss without the regularization term
 print('Loss on Test')
-print(loss(W, b, v, [X_test, y_test, SIGMA, N, RHO]).value)
+print(best_val_loss)
 
 
 # Plot 3D 
