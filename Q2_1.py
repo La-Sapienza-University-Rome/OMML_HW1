@@ -141,7 +141,7 @@ for _ in tqdm(range(trials)):
     cvx_problem = cvx.Problem(cvx.Minimize(loss(W, b, v, funcArgs)))
 
     # Solve the quadratic convex problem
-    cvx_problem.solve(solver=cvx.SCS, verbose=False, eps=1e-6, max_iters=10000)
+    cvx_problem.solve(solver=cvx.ECOS, verbose=False, max_iters=10000)
     
     # If the loss value is less than the current best value, save the parameters and update the best value
     current_train_loss = cvx_problem.value
@@ -151,10 +151,12 @@ for _ in tqdm(range(trials)):
         best_val_loss = current_val_loss
         best_W = W
         best_b = b
+        best_v = v
 
 # Set W and b
 W = best_W
-b = best_b                   
+b = best_b
+v = best_v              
 
 print('N')
 print(N)
