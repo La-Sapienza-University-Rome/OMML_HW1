@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 df = pd.read_csv('DATA.csv')
 
-train, test = train_test_split(df, test_size=0.25, random_state=1939671)
+train, test = train_test_split(df, test_size=0.255, random_state=1939671)
 
 X = np.array(train[['x1', 'x2']])
 y = np.expand_dims(np.array(train['y']), axis=1)
