@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import cvxpy as cvx
 from tqdm import tqdm
 
+np.random.seed(1939671)
+
 df = pd.read_csv('DATA.csv')
 
 train, test = train_test_split(df, test_size=0.25, random_state=1939671)
@@ -52,7 +54,7 @@ def feedforward(X:np.ndarray, W:np.ndarray, b:np.ndarray, v:cvx.Variable, sigma)
     return pred
 
     
-def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs) -> cvx.Expression:
+def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs, test=False) -> cvx.Expression:
     """
     Compute the loss of the MLP. Version adapted to cvxpy.
 
@@ -60,6 +62,7 @@ def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs) -> cvx.Expression
     :param b: bias
     :param v: output layer weights. cvxpy variable
     :param funcArgs: list of additional parameters
+    :param test: compute the loss without the regularization term. Boolean
 
     :return cvxpy expression. Use res.value to compute the expression and get the result.
     """
@@ -71,9 +74,11 @@ def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs) -> cvx.Expression
     rho = funcArgs[4]
 
     P = len(y)
-    norm = cvx.norm2(v)
     pred = feedforward(X, W, b, v, sigma)
-    res = ((cvx.sum((pred-y)**2))*P**(-1) + rho*norm)*0.5    
+    res = 0.5*((cvx.sum((pred-y)**2))*P**(-1))   
+
+    if not test:
+        res = res + 0.5*rho*cvx.norm2(v)
     
     return res
 
@@ -117,7 +122,7 @@ print('Rho:', RHO)
 funcArgs = [X, y, SIGMA, N, RHO] 
 
 # Set the number of random trials for W and b
-trials = 50
+trials = 150
 best_val_loss = 1000
 
 
@@ -126,8 +131,8 @@ for _ in tqdm(range(trials)):
 
     # Sample W and b from the given intervals
     # TODO: find optimal intervals
-    W = np.random.randn(X.shape[1], N)
-    b = np.expand_dims(np.random.randn(N), axis=0)
+    W = np.random.normal(loc=0.0, scale=1, size=(X.shape[1], N))
+    b = np.expand_dims(np.random.normal(loc=0.0, scale=2, size=N), axis=0)
 
     # Define v as a cvxpy.Variable
     v = cvx.Variable(shape=(N,1), name='v')
@@ -140,7 +145,7 @@ for _ in tqdm(range(trials)):
     
     # If the loss value is less than the current best value, save the parameters and update the best value
     current_train_loss = cvx_problem.value
-    current_val_loss = loss(W, b, v, [X_test, y_test, SIGMA, N, RHO]).value
+    current_val_loss = loss(W, b, v, [X_test, y_test, SIGMA, N, RHO], test=True).value
     if current_val_loss < best_val_loss:
         best_train_loss = current_train_loss
         best_val_loss = current_val_loss
@@ -181,8 +186,8 @@ print(best_val_loss)
 fig = plt.figure(figsize=(12, 8))
 ax = plt.axes(projection='3d')
 #create the grid
-x = np.linspace(-2, 2, 50) 
-y = np.linspace(-3, 3, 50)
+x = np.linspace(-3, 3, 50) 
+y = np.linspace(-2, 2, 50)
 X_plot, Y_plot = np.meshgrid(x, y) 
 
 Z = []
