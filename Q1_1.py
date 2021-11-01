@@ -109,9 +109,10 @@ def plotting(W, b, v, sigma):
     ax.set_title('F(x) learnt from MLP Q1_1')
     plt.show()
 
-sigma_grid = [1, 2, 5]
-N_grid = [10]
-rho_grid = np.linspace(1e-5, 1e-3, 2)
+sigma_grid = [1]
+N_grid = [20]
+#rho_grid = np.linspace(1e-5, 1e-3, 2)
+rho_grid = [1e-5]
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
 
@@ -136,7 +137,7 @@ for t in itertools.product(*iterables):
     res = train(X, y, sigma=t[0], 
                 N=t[1], rho=t[2], 
                 W_init=W, b_init=b, v_init=v,
-                max_iter=5000, tol=1e-6, 
+                max_iter=5000, tol=1e-5,
                 method='CG', func=loss)
     stop = time.time()
     
