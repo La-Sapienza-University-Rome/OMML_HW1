@@ -7,6 +7,8 @@ from tqdm import tqdm
 import json
 
 
+np.random.seed(1939671)
+
 df = pd.read_csv('DATA.csv')
 
 train, test = train_test_split(df, test_size=0.255, random_state=1939671)
@@ -73,7 +75,7 @@ def loss(X:np.ndarray, y:np.ndarray, c:np.ndarray, v:cvx.Variable, sigma:float, 
     res = cvx.sum((pred - y)**2) / (2*P)
 
     if not test:
-        res = res + 0.5 * rho * cvx.norm2(v)
+        res = res + 0.5 * rho * cvx.norm2(v)**2
 
     return res
 

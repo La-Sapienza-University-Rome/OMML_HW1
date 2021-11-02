@@ -77,7 +77,7 @@ def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs, test=False) -> cv
     res = 0.5*((cvx.sum((pred-y)**2))*P**(-1))   
 
     if not test:
-        res = res + 0.5*rho*cvx.norm2(v)
+        res = res + 0.5 * rho * cvx.norm2(v)**2
     
     return res
 
