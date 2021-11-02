@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
 from sklearn.model_selection import train_test_split
-import itertools
 import matplotlib.pyplot as plt
 import cvxpy as cvx
 from tqdm import tqdm
+import json
 
 np.random.seed(1939671)
 
@@ -106,10 +105,11 @@ def feedforward_eval(x1:float, x2:float, W:np.ndarray, b:np.ndarray, v:cvx.Varia
     
 
 # Fix the values of the hyperparameters according to the results of Q1_1
-# TODO: make these definitions dynamic
-SIGMA = 1
-N = 10
-RHO = 0.001
+with open('config/q_1_1_cfg.json', 'r') as conf_file:
+    hyperparameter_cfg = json.load(conf_file)
+SIGMA = hyperparameter_cfg['SIGMA']
+N = hyperparameter_cfg['N']
+RHO = hyperparameter_cfg['RHO']
 
     
 print('===================')
