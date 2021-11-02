@@ -156,7 +156,7 @@ def plotting(W, b, v, sigma):
 
 
 sigma_grid = [0.5, 1, 2, 5]
-N_grid = [2, 5, 10, 20, 40]
+N_grid = [2, 5, 10]
 rho_grid = np.linspace(1e-5, 1e-3, 3)
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
@@ -204,7 +204,7 @@ for t in itertools.product(*iterables):
         sigma_best = t[0]
         rho_best = t[2]
         min_loss = res_loss
-        best_params = res
+        best_params = res.x
         convergence = res.success
 
 W = best_params[:int(X.shape[1] * N_best)].reshape((X.shape[1], N_best))
