@@ -42,6 +42,34 @@ def feedforward(X, c, v, sigma):
     pred = np.dot(rbf(X, c, sigma).T, v)
     return pred
     
+def backpropagation(x0, funcArgs):
+
+    X = funcArgs[0]
+    y = funcArgs[1]
+    sigma = funcArgs[2]
+    N = funcArgs[3]
+    rho = funcArgs[4]
+    P = len(y)
+    
+    c = x0[:int(X.shape[1]*N)].reshape((X.shape[1],N))
+    v = x0[int(X.shape[1]*N):]
+    
+    z_1 = rbf(X, c, sigma).T
+    dJdf = (1/P)*(np.dot(z_1, v) - y)
+
+    minus_matrix = []
+    for i in range(len(c.T)):
+        minus_matrix.append(X - c.T[i])
+    minus_matrix = np.array(minus_matrix)
+
+    dW1_1 = np.dot(dJdf.reshape((P, 1)), v.reshape((1,N)))
+    dzdc = ((2*z_1)/(sigma**2))*minus_matrix.T
+
+    dv = np.dot(dJdf, z_1) + rho*v
+    dc = np.sum(dzdc*dW1_1, axis=1) + rho*c
+
+    return np.concatenate((dc, dv), axis=None)
+    
 def loss(x0, funcArgs):
     
     X = funcArgs[0]
@@ -56,7 +84,7 @@ def loss(x0, funcArgs):
     P = len(y)
     sum_ = np.sum((feedforward(X, c, v, sigma) - y)**2)
     norm = np.linalg.norm(x0)
-    res = (sum_*P**(-1) + rho*norm)*0.5 
+    res = (sum_*P**(-1) + rho*norm**2)*0.5 
     
     return res
     
@@ -83,6 +111,7 @@ def train(X, y, sigma, N, rho, c_init,
                    args=funcArgs, 
                    method=method, 
                    tol=tol,
+                   jac=backpropagation,
                    options={'maxiter':max_iter})    
     
     return res
@@ -115,7 +144,7 @@ def plotting(c, v, sigma):
     plt.show()
     
 sigma_grid = [0.01, 1, 2]
-N_grid = [2, 5, 10]
+N_grid = [2, 5, 10, 20, 40]
 rho_grid = [1e-5, 1e-4, 1e-3]
 iterables = [sigma_grid, N_grid, rho_grid]
 min_loss = 10000
@@ -137,7 +166,7 @@ for t in itertools.product(*iterables):
     res = train(X, y, sigma=t[0], 
                 N=t[1], rho=t[2], 
                 c_init=c, v_init=v,
-                max_iter=1000, tol=1e-6, 
+                max_iter=5000, tol=1e-6, 
                 method='CG', func=loss)
     stop = time.time()
     
@@ -161,6 +190,7 @@ for t in itertools.product(*iterables):
         rho_best = t[2]
         min_loss = res.fun
         best_params = res.x
+        convergence = res.success
 
 c=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
 v=best_params[X.shape[1]*N_best:]
@@ -179,5 +209,8 @@ print(c)
 print('')
 print('v')
 print(v)
+print('')
+print('Convergence?')
+print(convergence)
 
 plotting(c, v, sigma_best)

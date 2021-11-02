@@ -131,3 +131,4 @@ dmypy.json
 # Text
 notes.txt
 .idea/
+/archive
