@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import cvxpy as cvx
 from tqdm import tqdm
+import json
 
 
 df = pd.read_csv('DATA.csv')
@@ -79,10 +80,11 @@ def loss(X:np.ndarray, y:np.ndarray, c:np.ndarray, v:cvx.Variable, sigma:float, 
 
 
 # Define the hyperparameters according to Q1_2
-# TODO: make these definitions dynamic
-SIGMA = 1
-N = 10
-RHO = 1e-4
+with open('config/q_1_2_cfg.json', 'r') as conf_file:
+    hyperparameter_cfg = json.load(conf_file)
+SIGMA = hyperparameter_cfg['SIGMA']
+N = hyperparameter_cfg['N']
+RHO = hyperparameter_cfg['RHO']
 
 
 print('===================')
