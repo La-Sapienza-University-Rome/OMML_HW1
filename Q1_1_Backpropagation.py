@@ -236,3 +236,13 @@ print('Convergence?')
 print(convergence)
 
 plotting(W, b, v, sigma_best)
+
+# Save the best hyperparameters
+import json
+
+with open('config/q_1_1_cfg.json', 'w') as conf_file:
+    json.dump({
+        'SIGMA': sigma_best,
+        'RHO': rho_best,
+        'N': N_best
+    }, conf_file)
