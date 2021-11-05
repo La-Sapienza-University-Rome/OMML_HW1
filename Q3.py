@@ -61,7 +61,7 @@ def feedforward(X, W, b, v, sigma):
 
     return pred
 
-def backpropagation_block1(x0, funcArgs):
+def backpropagation_step1(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt v
     :param x0: Contains initialization for v (output layer weights)
@@ -101,7 +101,7 @@ def backpropagation_block1(x0, funcArgs):
 
     return np.concatenate((dv), axis=None)
 
-def backpropagation_block2(x0, funcArgs):
+def backpropagation_step2(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt W and b
     :param x0: Contains initialization for W and b(first layer weights and bias)
@@ -141,9 +141,9 @@ def backpropagation_block2(x0, funcArgs):
 
     return np.concatenate((dW, db), axis=None)
 
-def loss_block1(x0, funcArgs, test=False):
+def loss_step1(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the first block (with respect to v).
+    Compute the loss of the MLP for the first step (with respect to v).
 
     :param x0: Contains initialization for v (output layer weights)
     :param funcArgs: list of additional parameters. Specifically:
@@ -177,9 +177,9 @@ def loss_block1(x0, funcArgs, test=False):
 
     return res
 
-def loss_block2(x0, funcArgs, test=False):
+def loss_step2(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the second block (with respect to w and b).
+    Compute the loss of the MLP for the second step (with respect to w and b).
 
     :param x0: Contains initialization for W and b(first layer weights and bias)
     :param funcArgs: list of additional parameters. Specifically: X, y, sigma, N, rho, W, b,
@@ -254,10 +254,10 @@ def feedforwardplot(x1, x2, W, b, v, sigma):
 
     return pred
 
-def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_block1):
+def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_step1):
     """
-    Train the MLP for the given hyperparameters for the block 1
+    Train the MLP for the given hyperparameters for the step 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -282,15 +282,15 @@ def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_block1,
+                   jac=backpropagation_step1,
                    options={'maxiter': max_iter})
 
     return res
 
-def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_block2):
+def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_step2):
     """
-    Train the MLP for the given hyperparameters for the block 1
+    Train the MLP for the given hyperparameters for the step 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -315,7 +315,7 @@ def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_block2,
+                   jac=backpropagation_step2,
                    options={'maxiter': max_iter})
 
     return res
@@ -380,40 +380,40 @@ for _ in tqdm(range(trials)):
     v = np.random.randn(N_best)
 
     ########################################
-    ##### Block1: convex minimization wrt v
+    ##### step1: convex minimization wrt v
     ########################################
 
     start = time.time()
-    res_block1 = train_block1(X, y, sigma=sigma_best,
+    res_step1 = train_step1(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W, b_init=b, v_init=v,
                 max_iter=4000, tol=1e-6,
-                method='CG', func=loss_block1)
+                method='CG', func=loss_step1)
     stop1 = time.time()
     # Extract the values for v after optimization
-    v = res_block1.x
+    v = res_step1.x
 
     ##################################################
-    ##### Block2: non-convex minimization wrt w and b
+    ##### step2: non-convex minimization wrt w and b
     ##################################################
     start2 = time.time()
-    res_block2 = train_block2(X, y, sigma=sigma_best,
+    res_step2 = train_step2(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W, b_init=b, v=v,
                 max_iter=4000, tol=1e-6,
-                method='CG', func=loss_block2)
+                method='CG', func=loss_step2)
     stop2 = time.time()
 
     # Get the loss for validation set
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
-    current_val_loss = loss_block2(res_block2.x, funcArgs_test, test=True)
+    current_val_loss = loss_step2(res_step2.x, funcArgs_test, test=True)
 
     # Extract the loss for the train set
-    current_train_loss = res_block2.fun
+    current_train_loss = res_step2.fun
 
     # Extract the values for W and b after optimization
-    best_params = res_block2.x
+    best_params = res_step2.x
     W = best_params[:X.shape[1] * N_best].reshape((X.shape[1], N_best))
     b = best_params[X.shape[1] * N_best:X.shape[1] * N_best + N_best]
 
@@ -424,18 +424,18 @@ for _ in tqdm(range(trials)):
         best_W = W
         best_b = b
         best_v = v
-        convergence = res_block2.success
+        convergence = res_step2.success
 
     stop = time.time()
 
     print('')
     print('Time required by optimization:', round(stop - start, 1), ' s')
-    print('Time required by 1st block:', round(stop1 - start, 1), ' s')
-    print('Time required by 2nd block:', round(stop2 - start2, 1), ' s')
-    print('Minimal Loss Value on Train: ', res_block2.fun)
+    print('Time required by 1st step:', round(stop1 - start, 1), ' s')
+    print('Time required by 2nd step:', round(stop2 - start2, 1), ' s')
+    print('Minimal Loss Value on Train: ', res_step2.fun)
     print('Validation Loss: ', current_val_loss)
-    print('Iterations: ', res_block2.nit)
-    print('Did it converge?:', res_block2.success)
+    print('Iterations: ', res_step2.nit)
+    print('Did it converge?:', res_step2.success)
     print('===================')
 
 stop0 = time.time()
