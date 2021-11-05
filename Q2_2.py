@@ -52,7 +52,7 @@ def feedforward(X:np.ndarray, c:np.ndarray, v:cvx.Variable, sigma:float) -> cvx.
     assert sigma>0, 'Sigma must be positive.'
     assert X.shape[1] == c.shape[1], 'The shapes of X and c don\'t match.'
 
-    return cvx.matmul(v.T, rbf(X, c, sigma))
+    return cvx.matmul(rbf(X, c, sigma).T, v)
 
 
 def loss(X:np.ndarray, y:np.ndarray, c:np.ndarray, v:cvx.Variable, sigma:float, rho:float, test=False) -> cvx.Expression:

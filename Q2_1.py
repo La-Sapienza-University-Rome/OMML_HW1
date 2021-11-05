@@ -69,39 +69,17 @@ def loss(W:np.ndarray, b:np.ndarray, v:cvx.Variable, funcArgs, test=False) -> cv
     X = funcArgs[0]
     y = funcArgs[1]
     sigma = funcArgs[2]
-    N = funcArgs[3]
-    rho = funcArgs[4]
+    rho = funcArgs[3]
 
     P = len(y)
     pred = feedforward(X, W, b, v, sigma)
-    res = 0.5*((cvx.sum((pred-y)**2))*P**(-1))   
+    res = 0.5*((cvx.sum((pred-y)**2))/P)   
 
     if not test:
         res = res + 0.5 * rho * cvx.norm2(v)**2
     
     return res
 
-    
-def feedforward_eval(x1:float, x2:float, W:np.ndarray, b:np.ndarray, v:cvx.Variable, sigma) -> float:
-    """
-    Compute the forward pass of the MLP on a tuple (x1, x2). Version adapted to cvxpy library.
-
-    :param x1: first coordinate
-    :param x2: second coordinate
-    :param W: first layer weights
-    :param b: bias
-    :param v: output layer weights. cvxpy variable
-    :param sigma: hyperparameter for tanh
-
-    :return predicted value f(x1,x2)
-    """
-    
-    X = np.array([x1, x2])
-    linear_layer = (np.dot(X, W) + b)
-    activation = tanh(linear_layer, sigma)
-    pred = cvx.matmul(activation, v)
-    
-    return pred.value[0,0]
     
 
 # Fix the values of the hyperparameters according to the results of Q1_1
@@ -118,8 +96,8 @@ print('N:', N)
 print('Rho:', RHO)
 
 
-# Define the parameters for the function according to the function's API
-funcArgs = [X, y, SIGMA, N, RHO] 
+# Define the parameters for the function 
+funcArgs = [X, y, SIGMA, RHO] 
 
 # Set the number of random trials for W and b
 trials = 150
@@ -196,7 +174,7 @@ Z = []
 for x1 in np.linspace(-3, 3, 50):
     z  = []
     for x2 in np.linspace(-3, 3, 50):
-        z.append(feedforward_eval(x1, x2, W, b, v, SIGMA))
+        z.append(feedforward(np.array([x1, x2]), W, b, v, SIGMA).value[0,0])
     Z.append(z)
 Z = np.array(Z)
 
