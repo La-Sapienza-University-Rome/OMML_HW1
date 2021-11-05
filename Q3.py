@@ -5,15 +5,17 @@ from sklearn.model_selection import train_test_split
 import itertools
 import matplotlib.pyplot as plt
 import time
+from tqdm import tqdm
 
-# Define random seed for numoy operations
-np.random.seed(1939671)
+# Define random seed for numpy operations
+seed = 1939671
+np.random.seed(seed)
 
 # Load data set
 df = pd.read_csv('DATA.csv')
 
 # Split data in train and test
-train, test = train_test_split(df, test_size=0.25, random_state=1939671)
+train, test = train_test_split(df, test_size=0.25, random_state=seed)
 
 # Extract features for train
 X = np.array(train[['x1', 'x2']])
@@ -22,10 +24,10 @@ X = np.array(train[['x1', 'x2']])
 y = np.array(train['y'])
 
 # Extract features for train
-X_test = np.array(train[['x1', 'x2']])
+X_test = np.array(test[['x1', 'x2']])
 
 # Extract labels for test
-y_test = np.array(train['y'])
+y_test = np.array(test['y'])
 
 
 def tanh(s, sigma):
@@ -59,13 +61,92 @@ def feedforward(X, W, b, v, sigma):
 
     return pred
 
+def backpropagation_block1(x0, funcArgs):
+    """
+    Implement backpropagation to get the gradients wrt v
+    :param x0: Contains initialization for v (output layer weights)
+    :param funcArgs: list of additional parameters. Specifically:
+            X: features
+            y: labels
+            sigma: hyperparameter for tanh
+            N: Number of units
+            rho:
+            W: first layer weights
+            b: bias
+    :return the result of the minimization inside of the "res" object.
+    """
+    X = funcArgs[0]
+    y = funcArgs[1]
+    sigma = funcArgs[2]
+    N = funcArgs[3]
+    rho = funcArgs[4]
+    W = funcArgs[5].reshape((X.shape[1], N))
+    b = funcArgs[6]
 
-def loss_block1(x0, funcArgs):
+    v = x0
+
+    P = len(y)
+
+    linear_layer = (np.dot(X, W) + b)
+    a_2 = tanh(linear_layer, sigma)
+    dJdf = (1 / P) * (np.dot(a_2, v) - y)
+    dtanh = 1 - tanh(linear_layer, sigma) ** 2
+
+    dW1_1 = np.tensordot(dJdf, np.transpose(v), axes=0)
+    dW1_2 = dW1_1 * dtanh
+
+    dv = np.dot(dJdf, a_2) + rho * v
+    # db = np.sum(dW1_2, axis=0) + rho * b
+    # dW = np.tensordot(np.transpose(X), dW1_2, axes=1) + rho * W
+
+    return np.concatenate((dv), axis=None)
+
+def backpropagation_block2(x0, funcArgs):
+    """
+    Implement backpropagation to get the gradients wrt W and b
+    :param x0: Contains initialization for W and b(first layer weights and bias)
+    :param funcArgs: list of additional parameters. Specifically:
+            X: features
+            y: labels
+            sigma: hyperparameter for tanh
+            N: Number of units
+            rho:
+
+            v: output layer weights
+
+    :return the result of the minimization inside of the "res" object.
+    """
+    X = funcArgs[0]
+    y = funcArgs[1]
+    sigma = funcArgs[2]
+    N = funcArgs[3]
+    rho = funcArgs[4]
+    v = funcArgs[5]
+
+    P = len(y)
+
+    W = x0[:int(X.shape[1] * N)].reshape((X.shape[1], N))
+    b = x0[int(X.shape[1] * N):int(X.shape[1] * N + N)]
+
+    linear_layer = (np.dot(X, W) + b)
+    a_2 = tanh(linear_layer, sigma)
+    dJdf = (1 / P) * (np.dot(a_2, v) - y)
+    dtanh = 1 - tanh(linear_layer, sigma) ** 2
+
+    dW1_1 = np.tensordot(dJdf, np.transpose(v), axes=0)
+    dW1_2 = dW1_1 * dtanh
+
+    db = np.sum(dW1_2, axis=0) + rho * b
+    dW = np.tensordot(np.transpose(X), dW1_2, axes=1) + rho * W
+
+    return np.concatenate((dW, db), axis=None)
+
+def loss_block1(x0, funcArgs, test=False):
     """
     Compute the loss of the MLP for the first block (with respect to v).
 
     :param x0: Contains initialization for v (output layer weights)
-    :param funcArgs: list of additional parameters. Specifically: X, y, sigma, N, rho, W, b,
+    :param funcArgs: list of additional parameters. Specifically:
             X: features
             y: labels
             sigma: hyperparameter for tanh
@@ -89,11 +170,14 @@ def loss_block1(x0, funcArgs):
     P = len(y)
     norm = np.linalg.norm(x0)
     pred = feedforward(X, W, b, v, sigma)
-    res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm) * 0.5
+    if test:
+        res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
+    else:
+        res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm ** 2) * 0.5
 
     return res
 
-def loss_block2(x0, funcArgs):
+def loss_block2(x0, funcArgs, test=False):
     """
     Compute the loss of the MLP for the second block (with respect to w and b).
 
@@ -119,11 +203,13 @@ def loss_block2(x0, funcArgs):
     W = x0[:int(X.shape[1] * N)].reshape((X.shape[1], N))
     b = x0[int(X.shape[1] * N):int(X.shape[1] * N + N)]
 
-
     P = len(y)
     norm = np.linalg.norm(x0)
     pred = feedforward(X, W, b, v, sigma)
-    res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm) * 0.5
+    if test:
+        res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
+    else:
+        res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm ** 2) * 0.5
 
     return res
 
@@ -168,7 +254,6 @@ def feedforwardplot(x1, x2, W, b, v, sigma):
 
     return pred
 
-
 def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
           tol=1e-5, method='CG', func=loss_block1):
     """
@@ -197,6 +282,7 @@ def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
+                   jac=backpropagation_block1,
                    options={'maxiter': max_iter})
 
     return res
@@ -212,7 +298,7 @@ def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
     :param rho:
     :param W_init: first layer weights
     :param b_init: bias
-    :param v_init: output layer weights
+    :param v: output layer weights
     :param max_iter: Maximum number of iterations while minimizing
     :param tol: Tolerance for convergence
     :param method: Method for minimization
@@ -229,6 +315,7 @@ def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
+                   jac=backpropagation_block2,
                    options={'maxiter': max_iter})
 
     return res
@@ -267,70 +354,91 @@ def plotting(W, b, v, sigma):
     plt.show()
 
 # Define the best value obtained for N
-N_best = 40
+N_best = 60
 
 # Define the best value obtained for Sigma
 sigma_best = 1
 
 # Define the best value obtained for Rho
-rho_best = 0.001
+rho_best = 1e-05
 
-# Get random initialization for W
-W = np.random.randn(X.shape[1], N_best)
+# Set the number of random trials for W and b
+trials = 12
+best_val_loss = 1000
 
-# Get random initialization for b
-b = np.random.randn(N_best)
+start0 = time.time()
+# Iterate /trials/ times
+for _ in tqdm(range(trials)):
 
-# Get random initialization for v
-v = np.random.randn(N_best)
+    # Get random initialization for W
+    W = np.random.randn(X.shape[1], N_best)
 
-########################################
-##### Block1: convex minimization wrt v
-########################################
+    # Get random initialization for b
+    b = np.random.randn(N_best)
 
-start = time.time()
-res_block1 = train_block1(X, y, sigma=sigma_best,
-            N=N_best, rho=rho_best,
-            W_init=W, b_init=b, v_init=v,
-            max_iter=5000, tol=1e-6,
-            method='L-BFGS-B', func=loss_block1)
+    # Get random initialization for v
+    v = np.random.randn(N_best)
 
-# Extract the values for v after optimization
-v = res_block1.x
+    ########################################
+    ##### Block1: convex minimization wrt v
+    ########################################
 
-##################################################
-##### Block2: non-convex minimization wrt w and b
-##################################################
-res_block2 = train_block2(X, y, sigma=sigma_best,
-            N=N_best, rho=rho_best,
-            W_init=W, b_init=b, v=v,
-            max_iter=5000, tol=1e-6,
-            method='L-BFGS-B', func=loss_block2)
-stop = time.time()
+    start = time.time()
+    res_block1 = train_block1(X, y, sigma=sigma_best,
+                N=N_best, rho=rho_best,
+                W_init=W, b_init=b, v_init=v,
+                max_iter=4000, tol=1e-6,
+                method='CG', func=loss_block1)
+    stop1 = time.time()
+    # Extract the values for v after optimization
+    v = res_block1.x
 
-# Get the loss for validation set
-res_loss = loss_test(X=X_test, y=y_test,
-                     sigma=sigma_best, N=N_best,
-                     rho=rho_best,
-                     W=res_block2.x[:X.shape[1] * N_best].reshape((X.shape[1], N_best)),
-                     b=res_block2.x[X.shape[1] * N_best:X.shape[1] * N_best + N_best],
-                     v=res_block1.x)
+    ##################################################
+    ##### Block2: non-convex minimization wrt w and b
+    ##################################################
+    start2 = time.time()
+    res_block2 = train_block2(X, y, sigma=sigma_best,
+                N=N_best, rho=rho_best,
+                W_init=W, b_init=b, v=v,
+                max_iter=4000, tol=1e-6,
+                method='CG', func=loss_block2)
+    stop2 = time.time()
 
-print('')
-print('Time required by optimization:', round(stop - start, 1), ' s')
-print('Validation Loss: ', res_loss)
-print('Minimal Loss Value: ', res_block2.fun)
-print('Num Iterations: ', res_block2.nit)
-print('Did it converge?: ', res_block2.success)
-print('===================')
+    # Get the loss for validation set
+    funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
-# Extract the loss for the train set
-min_loss = res_block2.fun
+    current_val_loss = loss_block2(res_block2.x, funcArgs_test, test=True)
 
-# Extract the values for W and b after optimization
-best_params = res_block2.x
-W = best_params[:X.shape[1] * N_best].reshape((X.shape[1], N_best))
-b = best_params[X.shape[1] * N_best:X.shape[1] * N_best + N_best]
+    # Extract the loss for the train set
+    current_train_loss = res_block2.fun
+
+    # Extract the values for W and b after optimization
+    best_params = res_block2.x
+    W = best_params[:X.shape[1] * N_best].reshape((X.shape[1], N_best))
+    b = best_params[X.shape[1] * N_best:X.shape[1] * N_best + N_best]
+
+    # Retain the best values
+    if current_val_loss < best_val_loss:
+        best_train_loss = current_train_loss
+        best_val_loss = current_val_loss
+        best_W = W
+        best_b = b
+        best_v = v
+        convergence = res_block2.success
+
+    stop = time.time()
+
+    print('')
+    print('Time required by optimization:', round(stop - start, 1), ' s')
+    print('Time required by 1st block:', round(stop1 - start, 1), ' s')
+    print('Time required by 2nd block:', round(stop2 - start2, 1), ' s')
+    print('Minimal Loss Value on Train: ', res_block2.fun)
+    print('Validation Loss: ', current_val_loss)
+    print('Iterations: ', res_block2.nit)
+    print('Did it converge?:', res_block2.success)
+    print('===================')
+
+stop0 = time.time()
 
 print('N')
 print(N_best)
@@ -349,6 +457,17 @@ print(b)
 print('')
 print('v')
 print(v)
+print('')
+print('Train Loss')
+print(best_train_loss)
+print('Validation Loss')
+print(best_val_loss)
+print('')
+print('Convergence?')
+print(convergence)
+print('')
+print('')
+print('Time required by optimization:', round(stop0 - start0, 1), ' s')
 
 # Plot function estimated from data
 plotting(W, b, v, sigma_best)
