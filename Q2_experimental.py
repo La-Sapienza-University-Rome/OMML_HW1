@@ -2,7 +2,7 @@ import numpy as np
 import cvxpy as cvx
 import time
 import json
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, minimize
 from scipy.stats import truncnorm
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
@@ -352,6 +352,14 @@ class ModelNumpy(Model):
         super()._set_state(**kwargs)
 
 
+    def _residuals(self, v):
+        self.v = np.expand_dims(v, axis=1)
+        P = len(self.y)
+        a = np.concatenate([np.squeeze(self.feedforward(self.X)), np.squeeze(np.dot(np.full(shape=(self.N, self.N), fill_value=np.sqrt(self.RHO * P)), self.v))], axis=0)
+        b = np.concatenate([np.squeeze(self.y), np.squeeze(np.zeros(shape=self.N))])
+        return np.squeeze(a - b)/np.sqrt(P)
+
+
     def _save_state(self, state, **kwargs):
         if kwargs['restore']:
             if self.algorithm == 'MLP':
@@ -379,9 +387,9 @@ class ModelNumpy(Model):
 
     def feedforward(self, X):
         if self.algorithm == 'MLP':
-            return self._feedforward_MLP(X)[0]
+            return np.squeeze(self._feedforward_MLP(X))
         else:
-            return self._feedforward_RBF(X)[0]
+            return np.squeeze(self._feedforward_RBF(X))
 
 
     def loss(self, X, y, test=False):
@@ -411,7 +419,7 @@ class ModelNumpy(Model):
         z2 = np.dot(a1, self.v)
         dJdf = (z2 - self.y) / P
         dz2dv = a1
-        return np.squeeze(np.dot(dz2dv.T, dJdf) + self.RHO * self.v)
+        return np.concatenate([dz2dv, np.full(shape=(self.N, self.N), fill_value=np.sqrt(self.RHO * P))])/P # np.dot(dz2dv.T, dJdf) + self.RHO * self.v
 
 
     def fit(self, Xy, Xy_val, trials=1, **kwargs):
@@ -422,7 +430,7 @@ class ModelNumpy(Model):
         for _ in tqdm(range(trials)):
             t0 = time.time()
             self._set_state(**kwargs)
-            problem_res = least_squares(self._loss, self.v, jac=self._gradient)
+            problem_res = least_squares(self._residuals, self.v, jac=self._gradient)
             self.v = problem_res.x
             current_val_loss = self.loss(X_val, y_val, test=False)
             t1 = time.time()

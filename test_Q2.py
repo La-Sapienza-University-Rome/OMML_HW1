@@ -16,7 +16,7 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 
 
-el = ExtremeLearning(library='cvx', algorithm='RBF', hyper_param_cfg_file='config/q_1_1_cfg.json')
+el = ExtremeLearning(library='numpy', algorithm='MLP', hyper_param_cfg_file='config/q_1_1_cfg.json')
 
 
 options = {
@@ -33,7 +33,7 @@ options = {
 }
 
 
-el.fit((X,y), (X_test, y_test), trials=150, **options)
+el.fit((X,y), (X_test, y_test), trials=1, **options)
 
 print(el)
 
