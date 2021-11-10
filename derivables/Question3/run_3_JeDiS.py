@@ -10,7 +10,7 @@ import sys
 parentdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 change = parentdir + r'\functions'
 sys.path.append(change)
-from functions import *
+from functions_q3 import *
 import json
 
 # Define random seed for numpy operations

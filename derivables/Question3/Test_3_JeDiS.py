@@ -4,11 +4,11 @@ import sys
 parentdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 change = parentdir + r'\functions'
 sys.path.append(change)
-from functions import *
+from functions_q3 import *
 import pickle
 import pandas as pd
 
-# Load data set
+# Load data set (change here by the desired one)
 X_test = pd.read_csv('../../DATA.csv')
 X_test = np.array(X_test[['x1', 'x2']])
 
