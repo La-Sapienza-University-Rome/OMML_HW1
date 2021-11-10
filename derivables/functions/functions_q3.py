@@ -1,13 +1,6 @@
 import numpy as np
-import pandas as pd
 from scipy.optimize import minimize
-from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-import time
-from tqdm import tqdm
-import sys
-import os
-import sys
 
 def tanh(s, sigma):
     """
@@ -40,7 +33,7 @@ def feedforward(X, W, b, v, sigma):
 
     return pred
 
-def backpropagation_step1(x0, funcArgs):
+def backpropagation_block1(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt v
     :param x0: Contains initialization for v (output layer weights)
@@ -78,7 +71,7 @@ def backpropagation_step1(x0, funcArgs):
 
     return np.concatenate((dv), axis=None)
 
-def backpropagation_step2(x0, funcArgs):
+def backpropagation_block2(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt W and b
     :param x0: Contains initialization for W and b(first layer weights and bias)
@@ -118,9 +111,9 @@ def backpropagation_step2(x0, funcArgs):
 
     return np.concatenate((dW, db), axis=None)
 
-def loss_step1(x0, funcArgs, test=False):
+def loss_block1(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the first step (with respect to v).
+    Compute the loss of the MLP for the first block (with respect to v).
 
     :param x0: Contains initialization for v (output layer weights)
     :param funcArgs: list of additional parameters. Specifically:
@@ -154,9 +147,9 @@ def loss_step1(x0, funcArgs, test=False):
 
     return res
 
-def loss_step2(x0, funcArgs, test=False):
+def loss_block2(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the second step (with respect to w and b).
+    Compute the loss of the MLP for the second block (with respect to w and b).
 
     :param x0: Contains initialization for W and b(first layer weights and bias)
     :param funcArgs: list of additional parameters. Specifically: X, y, sigma, N, rho, W, b,
@@ -170,9 +163,6 @@ def loss_step2(x0, funcArgs, test=False):
 
     :return the result of the loss inside of the "res" object.
     """
-    global Nfeval_step2
-    global curr_loss_step2
-    global prev_loss_step2
     X = funcArgs[0]
     y = funcArgs[1]
     sigma = funcArgs[2]
@@ -189,14 +179,8 @@ def loss_step2(x0, funcArgs, test=False):
     if test:
         res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
     else:
-        # if Nfeval_step2 == 1:
-        #     prev_loss_step2 = None
-        # else:
-        #     prev_loss_step2 = curr_loss_step2
 
         res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm ** 2) * 0.5
-        # curr_loss_step2 = res
-        # Nfeval_step2 += 1
 
     return res
 
@@ -220,25 +204,10 @@ def loss_test(X, y, sigma, N, rho, W, b, v):
 
     return res
 
-# class Callback:
-#     def __init__(self, tol=1e-5):
-#         self._tol = tol
-#
-#     def __call__(self, tol):
-#         perc_evaluated = Nfeval_step2 / Nmaxit
-#
-#         if prev_loss_step2 is not None and perc_evaluated > 0.5 and abs(prev_loss_step2 - curr_loss_step2) < self._tol:
-#             # print('1')
-#             return True
-#         # else:
-#             # print('2')
-#
-#         return False
-
-def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_step1):
+def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_block1):
     """
-    Train the MLP for the given hyperparameters for the step 1
+    Train the MLP for the given hyperparameters for the block 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -263,15 +232,15 @@ def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_step1,
+                   jac=backpropagation_block1,
                    options={'maxiter': max_iter})
 
     return res
 
-def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_step2):
+def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_block2):
     """
-    Train the MLP for the given hyperparameters for the step 1
+    Train the MLP for the given hyperparameters for the block 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -291,14 +260,12 @@ def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
 
     funcArgs = [X, y, sigma, N, rho, v]
 
-    # cb = Callback(tol=1e-5)
-
     res = minimize(func,
                    x0,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_step2,
+                   jac=backpropagation_block2,
                    # callback=cb,
                    options={'maxiter': max_iter})
 
