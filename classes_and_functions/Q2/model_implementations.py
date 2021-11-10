@@ -94,17 +94,17 @@ class ModelCVX(Model):
     def _feedforward_MLP(self, X):
         linear_layer = np.dot(X, self.W) + self.b
         activation = self._tanh(linear_layer)
-        return cvx.matmul(activation, self.v.T)
+        return cvx.matmul(activation, self.v)
 
 
 
     def _feedforward_RBF(self, X):
-        return cvx.matmul(self._rbf(X).T, self.v.T)
+        return cvx.matmul(self._rbf(X).T, self.v)
 
 
     
     def _set_state(self, **kwargs):
-        self.v = cvx.Variable(shape=(1,self.N), value=np.random.normal(size=(1,self.N)), name='v')
+        self.v = cvx.Variable(shape=(self.N,1), value=np.random.normal(size=(self.N,1)), name='v')
         super()._set_state(**kwargs)
 
 
@@ -121,19 +121,19 @@ class ModelCVX(Model):
         else:
             if self.algorithm == 'MLP':
                 self.state = {'best_W': self.W.copy(),
-                              'best_b': self.b.copy()}
+                              'best_b': self.b.copy(),
+                              'printable_info':{}}
             else:
-                self.state = {'best_c': self.c.copy()}
+                self.state = {'best_c': self.c.copy(), 'printable_info':{}}
             self.state['best_v'] = np.array(self.v.value).ravel()
-            self.state['N'] = self.N
-            self.state['SIGMA'] = self.SIGMA
-            self.state['RHO'] = self.RHO
-            self.state['solver_name'] = state.solver_stats.solver_name
-            self.state['solve_time'] = state.solver_stats.solve_time
-            self.state['num_iters'] = state.solver_stats.num_iters
-            self.state['problem_status'] = state.status
-            self.state['best_train_loss'] = kwargs['train_loss']
-            self.state['best_test_loss'] = kwargs['test_loss']
+            self.state['printable_info']['Number of neurons N chosen'] = self.N
+            self.state['printable_info']['Value of σ chosen'] = self.SIGMA
+            self.state['printable_info']['Value of ρ chosen'] = self.RHO
+            self.state['printable_info']['Optimization solver chosen'] = state.solver_stats.solver_name
+            self.state['printable_info']['Number of function evaluations'] = state.solver_stats.num_iters
+            self.state['printable_info']['Time for optimizing the network'] = round(state.solver_stats.solve_time, 6)
+            self.state['printable_info']['Training Error'] = round(kwargs['train_loss'], 6)
+            self.state['printable_info']['Test Error'] = round(kwargs['test_loss'], 6)
 
     
 

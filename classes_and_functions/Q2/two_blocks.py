@@ -1,4 +1,5 @@
 from classes_and_functions.Q2.model_implementations import *
+import pickle
 
 
 
@@ -15,11 +16,32 @@ class TwoBlocksContext:
     - eval(tuple(X_test,y_test))
     - fit(tuple(X,y), tuple(X_test,y_test), trials=1, **kwargs)
     - get_state()
+    - load_from_file(file_path)
     - loss(X, y, test=False)
     - plot()
     - predict(X)
+    - save_to_file(file_path)
     - __str__() -> string representation of the state of the object ModelCVX or ModelNumpy
     """
+
+    ###########################
+    # Static Methods
+    ###########################
+
+    @staticmethod
+    def load_from_file(file_path):
+        """
+        Load and return the pre-trained object in file_path.
+
+        :param file_path: path to the object file
+
+        :return new TwoBlocksContext instance 
+        """
+        with open(file_path, 'rb') as in_file:
+            obj = pickle.load(in_file)
+        return obj
+
+
 
     ###########################
     # Magic Methods
@@ -129,3 +151,14 @@ class TwoBlocksContext:
         :return y[n_samples,]
         """
         return self.model.feedforward(X)
+
+
+
+    def save_to_file(self, file_path):
+        """
+        Save the current object to a pickle file.
+
+        :param file_path
+        """
+        with open(file_path, 'wb') as out_file:
+            pickle.dump(self, out_file, protocol=pickle.HIGHEST_PROTOCOL)

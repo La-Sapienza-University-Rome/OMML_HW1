@@ -55,10 +55,10 @@ class Model(abc.ABC):
         """
         Return a nice string representation of the object's state
         """
-        str_repr = ''
-        for key, value in self.state.items():
-            str_repr += '\n## {key}: {value}\n'.format(key=key, value=value)
-        return str_repr
+        str_repr = '\n\n'
+        for key, value in self.state['printable_info'].items():
+            str_repr += '\n{key}: {value}'.format(key=key, value=value)
+        return str_repr + '\n\n'
 
 
 
@@ -107,7 +107,7 @@ class Model(abc.ABC):
 
     def plot(self, title):
         """
-        Plot the function in (-3,3)x(-2,2).
+        Plot the function in (-2,2)x(-3,3).
         :param title
         """
         fig = plt.figure(figsize=(12, 8))
