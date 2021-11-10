@@ -3,6 +3,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+
+
+
 # Set seed
 np.random.seed(1939671)
 
@@ -48,3 +51,7 @@ print(tbc)
 
 # Plot the function in (-2,2)x(-3,3)
 tbc.plot()
+
+
+# Save the trained object
+tbc.save_to_file(file_path='./config/model_q_2_1.pickle')
