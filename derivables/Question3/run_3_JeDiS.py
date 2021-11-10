@@ -36,7 +36,7 @@ X_test = np.array(test[['x1', 'x2']])
 y_test = np.array(test['y'])
 
 # Define the best value obtained for N
-N_best = 80
+N_best = 70
 
 # Define the best value obtained for Sigma
 sigma_best = 1
@@ -45,82 +45,98 @@ sigma_best = 1
 rho_best = 1e-05
 
 # Initialize current loss for early stopping
-curr_loss_step2 = None
-prev_loss_step2 = None
-Nfeval_step2 = 1
-global Nmaxit
-Nmaxit = 4000
 
-# Set the number of random trials
-trials = 1
+# Set the number of random trials for W and b
+max_trials = 30
 best_val_loss = 1000
+
+# Get random initialization for W
+W_init = np.random.randn(X.shape[1], N_best)
+
+# Get random initialization for b
+b_init = np.random.randn(N_best)
+
+# Get random initialization for v
+v_init = np.random.randn(N_best)
+
+# Threshold for early stopping
+thres = 1e-4
+
+# Initialize the previous validation loss
+losses = [1000]
+
+# Initialize counters
+niter_block1 = 0
+nfev_block1 = 0
+njev_block1 = 0
+niter_block2 = 0
+nfev_block2 = 0
+njev_block2 = 0
+time_block1 = 0
+time_block2 = 0
+time_total = 0
 
 start0 = time.time()
 # Iterate /trials/ times
-for _ in tqdm(range(trials)):
-
-    # Get random initialization for W
-    W = np.random.randn(X.shape[1], N_best)
-
-    # Get random initialization for b
-    b = np.random.randn(N_best)
-
-    # Get random initialization for v
-    v = np.random.randn(N_best)
+for i in tqdm(range(max_trials)):
 
     ########################################
-    ##### step1: convex minimization wrt v
+    ##### block1: convex minimization wrt v
     ########################################
+
+    # Set the tolerance to use in the minimizations (change it in each iteration exponentially)
+    tol = 1e-2 * (1 + 2)**(-i)
 
     start = time.time()
-    res_step1 = train_step1(X, y, sigma=sigma_best,
+    res_block1 = train_block1(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
-                W_init=W, b_init=b, v_init=v,
-                max_iter=Nmaxit, tol=1e-6,
-                method='BFGS', func=loss_step1)
+                W_init=W_init, b_init=b_init, v_init=v_init,
+                max_iter=4000, tol=tol,
+                method='SLSQP', func=loss_block1)
     stop1 = time.time()
     # Extract the values for v after optimization
-    v = res_step1.x
+    v = res_block1.x
 
-    # Number of iterations for step 1
-    niter_step1 = res_step1.nit
+    # Number of iterations for block 1
+    niter_block1 += res_block1.nit
 
-    # Number of functions evaluation for step 1
-    nfev_step1 = res_step1.nfev
+    # Number of functions evaluation for block 1
+    nfev_block1 += res_block1.nfev
 
-    # Number of gradient evaluation for step 1
-    njev_step1 = res_step1.njev
+    # Number of gradient evaluation for block 1
+    njev_block1 += res_block1.njev
 
     ##################################################
-    ##### step2: non-convex minimization wrt w and b
+    ##### block2: non-convex minimization wrt w and b
     ##################################################
     start2 = time.time()
-    res_step2 = train_step2(X, y, sigma=sigma_best,
+    res_block2 = train_block2(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
-                W_init=W, b_init=b, v=v,
-                max_iter=Nmaxit, tol=1e-6,
-                method='BFGS', func=loss_step2)
+                W_init=W_init, b_init=b_init, v=v,
+                max_iter=4000, tol=tol,
+                method='L-BFGS-B', func=loss_block2)
     stop2 = time.time()
 
-    # Number of iterations for step 2
-    niter_step2 = res_step2.nit
+    # Number of iterations for block 2
+    niter_block2 += res_block2.nit
 
-    # Number of functions evaluation for step 2
-    nfev_step2 = res_step2.nfev
+    # Number of functions evaluation for block 2
+    nfev_block2 += res_block2.nfev
 
-    # Number of gradient evaluation for step 2
-    njev_step2 = res_step2.njev
-    
+    # Number of gradient evaluation for block 2
+    njev_block2 += res_block2.njev
+
     # Get the loss for validation set
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
-    current_val_loss = loss_step2(res_step2.x, funcArgs_test, test=True)
+    current_val_loss = loss_block2(res_block2.x, funcArgs_test, test=True)
+    losses.append(current_val_loss)
 
     # Extract the loss for the train set
-    current_train_loss = res_step2.fun
+    current_train_loss = res_block2.fun
 
     # Extract the values for W and b after optimization
-    best_params = res_step2.x
+    best_params = res_block2.x
     W = best_params[:X.shape[1] * N_best].reshape((X.shape[1], N_best))
     b = best_params[X.shape[1] * N_best:X.shape[1] * N_best + N_best]
 
@@ -131,29 +147,30 @@ for _ in tqdm(range(trials)):
         best_W = W
         best_b = b
         best_v = v
-        convergence = res_step2.success
-        best_iter_step1 = niter_step1
-        best_iter_step2 = niter_step2
-        best_nfev_step1 = nfev_step1
-        best_nfev_step2 = nfev_step2
-        best_njev_step1 = njev_step1
-        best_njev_step2 = njev_step2
-        time_step1 = round(stop1 - start, 1)
-        time_step2 = round(stop2 - start, 1)
+        convergence = res_block2.success
+        best_iter_block1 = niter_block1
+        best_iter_block2 = niter_block2
+        best_nfev_block1 = nfev_block1
+        best_nfev_block2 = nfev_block2
+        best_njev_block1 = njev_block1
+        best_njev_block2 = njev_block2
+        time_block1 += round(stop1 - start, 1)
+        time_block2 += round(stop2 - start, 1)
 
     stop = time.time()
-    time_total = round(stop - start, 1)
+
+    # Define the early stopping criteria
+    if abs(losses[-1] - losses[-2]) < thres:
+        break
 
 stop0 = time.time()
 
 print('Number of neurons N chosen:', N_best)
 print('Value of σ chosen:', sigma_best)
 print('Value of ρ chosen:', rho_best)
-print('Optimization solver chosen:', "BFGS")
-print('Number of function evaluations:', best_nfev_step1 + best_nfev_step2)
-print('Number of gradient evaluations:', best_njev_step1 + best_njev_step2)
-print('Time for optimizing the network:', time_total, 's')
+print('Optimization solver chosen:', "block1: SLSQP, block2: L-BFGS-B")
+print('Number of function evaluations:', best_nfev_block1 + best_nfev_block2)
+print('Number of gradient evaluations:', best_njev_block1 + best_njev_block2)
+print('Time for optimizing the network:', round(stop0 - start0, 1), 's')
 print('Training Error:', best_train_loss)
 print('Test Error', best_val_loss)
-
-
