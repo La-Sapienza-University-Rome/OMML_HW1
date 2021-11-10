@@ -63,7 +63,7 @@ def feedforward(X, W, b, v, sigma):
 
     return pred
 
-def backpropagation_step1(x0, funcArgs):
+def backpropagation_block1(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt v
     :param x0: Contains initialization for v (output layer weights)
@@ -101,7 +101,7 @@ def backpropagation_step1(x0, funcArgs):
 
     return np.concatenate((dv), axis=None)
 
-def backpropagation_step2(x0, funcArgs):
+def backpropagation_block2(x0, funcArgs):
     """
     Implement backpropagation to get the gradients wrt W and b
     :param x0: Contains initialization for W and b(first layer weights and bias)
@@ -141,9 +141,9 @@ def backpropagation_step2(x0, funcArgs):
 
     return np.concatenate((dW, db), axis=None)
 
-def loss_step1(x0, funcArgs, test=False):
+def loss_block1(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the first step (with respect to v).
+    Compute the loss of the MLP for the first block (with respect to v).
 
     :param x0: Contains initialization for v (output layer weights)
     :param funcArgs: list of additional parameters. Specifically:
@@ -179,9 +179,9 @@ def loss_step1(x0, funcArgs, test=False):
 
 
 
-def loss_step2(x0, funcArgs, test=False):
+def loss_block2(x0, funcArgs, test=False):
     """
-    Compute the loss of the MLP for the second step (with respect to w and b).
+    Compute the loss of the MLP for the second block (with respect to w and b).
 
     :param x0: Contains initialization for W and b(first layer weights and bias)
     :param funcArgs: list of additional parameters. Specifically: X, y, sigma, N, rho, W, b,
@@ -235,10 +235,10 @@ def loss_test(X, y, sigma, N, rho, W, b, v):
 
     return res
 
-def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_step1):
+def train_block1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_block1):
     """
-    Train the MLP for the given hyperparameters for the step 1
+    Train the MLP for the given hyperparameters for the block 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -263,15 +263,15 @@ def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_step1,
+                   jac=backpropagation_block1,
                    options={'maxiter': max_iter})
 
     return res
 
-def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
-          tol=1e-5, method='CG', func=loss_step2):
+def train_block2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
+          tol=1e-5, method='CG', func=loss_block2):
     """
-    Train the MLP for the given hyperparameters for the step 1
+    Train the MLP for the given hyperparameters for the block 1
     :param X: features
     :param y: labels
     :param sigma: hyperparameter for tanh
@@ -296,7 +296,7 @@ def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
                    args=funcArgs,
                    method=method,
                    tol=tol,
-                   jac=backpropagation_step2,
+                   jac=backpropagation_block2,
                    options={'maxiter': max_iter})
 
     return res
@@ -332,7 +332,7 @@ rho_best = 1e-05
 # Initialize current loss for early stopping
 
 # Set the number of random trials for W and b
-max_trials = 10
+max_trials = 30
 best_val_loss = 1000
 
 # Get random initialization for W
@@ -345,20 +345,20 @@ b_init = np.random.randn(N_best)
 v_init = np.random.randn(N_best)
 
 # Threshold for early stopping
-thres = 1e-3
+thres = 1e-4
 
 # Initialize the previous validation loss
 losses = [1000]
 
 # Initialize counters
-niter_step1 = 0
-nfev_step1 = 0
-njev_step1 = 0
-niter_step2 = 0
-nfev_step2 = 0
-njev_step2 = 0
-time_step1 = 0
-time_step2 = 0
+niter_block1 = 0
+nfev_block1 = 0
+njev_block1 = 0
+niter_block2 = 0
+nfev_block2 = 0
+njev_block2 = 0
+time_block1 = 0
+time_block2 = 0
 time_total = 0
 
 start0 = time.time()
@@ -366,62 +366,62 @@ start0 = time.time()
 for i in tqdm(range(max_trials)):
 
     ########################################
-    ##### step1: convex minimization wrt v
+    ##### block1: convex minimization wrt v
     ########################################
 
     # Set the tolerance to use in the minimizations (change it in each iteration exponentially)
     tol = 1e-2 * (1 + 2)**(-i)
     print("Tolerance:",tol)
     start = time.time()
-    res_step1 = train_step1(X, y, sigma=sigma_best,
+    res_block1 = train_block1(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W_init, b_init=b_init, v_init=v_init,
                 max_iter=4000, tol=tol,
-                method='SLSQP', func=loss_step1)
+                method='SLSQP', func=loss_block1)
     stop1 = time.time()
     # Extract the values for v after optimization
-    v = res_step1.x
+    v = res_block1.x
 
-    # Number of iterations for step 1
-    niter_step1 += res_step1.nit
+    # Number of iterations for block 1
+    niter_block1 += res_block1.nit
 
-    # Number of functions evaluation for step 1
-    nfev_step1 += res_step1.nfev
+    # Number of functions evaluation for block 1
+    nfev_block1 += res_block1.nfev
 
-    # Number of gradient evaluation for step 1
-    njev_step1 += res_step1.njev
+    # Number of gradient evaluation for block 1
+    njev_block1 += res_block1.njev
 
     ##################################################
-    ##### step2: non-convex minimization wrt w and b
+    ##### block2: non-convex minimization wrt w and b
     ##################################################
     start2 = time.time()
-    res_step2 = train_step2(X, y, sigma=sigma_best,
+    res_block2 = train_block2(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W_init, b_init=b_init, v=v,
                 max_iter=4000, tol=tol,
-                method='CG', func=loss_step2)
+                method='L-BFGS-B', func=loss_block2)
     stop2 = time.time()
 
-    # Number of iterations for step 2
-    niter_step2 += res_step2.nit
+    # Number of iterations for block 2
+    niter_block2 += res_block2.nit
 
-    # Number of functions evaluation for step 2
-    nfev_step2 += res_step2.nfev
+    # Number of functions evaluation for block 2
+    nfev_block2 += res_block2.nfev
 
-    # Number of gradient evaluation for step 2
-    njev_step2 += res_step2.njev
+    # Number of gradient evaluation for block 2
+    njev_block2 += res_block2.njev
 
     # Get the loss for validation set
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
-    current_val_loss = loss_step2(res_step2.x, funcArgs_test, test=True)
+    current_val_loss = loss_block2(res_block2.x, funcArgs_test, test=True)
     losses.append(current_val_loss)
 
     # Extract the loss for the train set
-    current_train_loss = res_step2.fun
+    current_train_loss = res_block2.fun
 
     # Extract the values for W and b after optimization
-    best_params = res_step2.x
+    best_params = res_block2.x
     W = best_params[:X.shape[1] * N_best].reshape((X.shape[1], N_best))
     b = best_params[X.shape[1] * N_best:X.shape[1] * N_best + N_best]
 
@@ -432,15 +432,15 @@ for i in tqdm(range(max_trials)):
         best_W = W
         best_b = b
         best_v = v
-        convergence = res_step2.success
-        best_iter_step1 = niter_step1
-        best_iter_step2 = niter_step2
-        best_nfev_step1 = nfev_step1
-        best_nfev_step2 = nfev_step2
-        best_njev_step1 = njev_step1
-        best_njev_step2 = njev_step2
-        time_step1 += round(stop1 - start, 1)
-        time_step2 += round(stop2 - start, 1)
+        convergence = res_block2.success
+        best_iter_block1 = niter_block1
+        best_iter_block2 = niter_block2
+        best_nfev_block1 = nfev_block1
+        best_nfev_block2 = nfev_block2
+        best_njev_block1 = njev_block1
+        best_njev_block2 = njev_block2
+        time_block1 += round(stop1 - start, 1)
+        time_block2 += round(stop2 - start, 1)
 
     stop = time.time()
     # time_total += round(stop - start, 1)
@@ -454,12 +454,12 @@ for i in tqdm(range(max_trials)):
 
     print('')
     print('Time required by optimization:', round(stop - start, 1), ' s')
-    print('Time required by 1st step:', round(stop1 - start, 1), ' s')
-    print('Time required by 2nd step:', round(stop2 - start2, 1), ' s')
-    print('Minimal Loss Value on Train: ', res_step2.fun)
+    print('Time required by 1st block:', round(stop1 - start, 1), ' s')
+    print('Time required by 2nd block:', round(stop2 - start2, 1), ' s')
+    print('Minimal Loss Value on Train: ', res_block2.fun)
     print('Validation Loss: ', current_val_loss)
-    print('Iterations: ', res_step2.nit)
-    print('Did it converge?:', res_step2.success)
+    print('Iterations: ', res_block2.nit)
+    print('Did it converge?:', res_block2.success)
     print('===================')
 
 stop0 = time.time()
@@ -482,38 +482,38 @@ print('')
 print('v')
 print(best_v)
 print('')
-print('Iterations step 1')
-print(best_iter_step1)
+print('Iterations block 1')
+print(best_iter_block1)
 print('')
-print('Iterations step 2')
-print(best_iter_step2)
+print('Iterations block 2')
+print(best_iter_block2)
 print('')
 print('Outer Iterations')
-print(best_iter_step1 + best_iter_step2)
+print(best_iter_block1 + best_iter_block2)
 print('')
-print('nfev step 1')
-print(best_nfev_step1)
+print('nfev block 1')
+print(best_nfev_block1)
 print('')
-print('nfev step 2')
-print(best_nfev_step2)
+print('nfev block 2')
+print(best_nfev_block2)
 print('')
 print('nfev total')
-print(best_nfev_step1 + best_nfev_step2)
+print(best_nfev_block1 + best_nfev_block2)
 print('')
-print('njev step 1')
-print(best_njev_step1)
+print('njev block 1')
+print(best_njev_block1)
 print('')
-print('njev step 2')
-print(best_njev_step2)
+print('njev block 2')
+print(best_njev_block2)
 print('')
 print('njev total')
-print(best_njev_step1 + best_njev_step2)
+print(best_njev_block1 + best_njev_block2)
 print('')
-print('Time required by step 1:', time_step1, ' s')
+print('Time required by block 1:', time_block1, ' s')
 print('')
-print('Time required by step 2:', time_step2, ' s')
+print('Time required by block 2:', time_block2, ' s')
 print('')
-print('Time required by whole optimization:', time_step1 + time_step2, ' s')
+print('Time required by whole optimization:', time_block1 + time_block2, ' s')
 print('')
 print('Train Loss')
 print(best_train_loss)
@@ -531,7 +531,7 @@ dict = {"W": best_W,
         "v": best_v,
         "sigma": sigma_best }
 
-with open('q3_values_for_prediction.pickle', 'wb') as handle:
+with open('derivables/Question3/q3_values_for_prediction.pickle', 'wb') as handle:
     pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
