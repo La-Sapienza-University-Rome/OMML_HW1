@@ -30,6 +30,7 @@ def feedforward(X, W, b, v, sigma):
 
     return pred
 
+
 def backpropagation(x0, funcArgs):
     
     X = funcArgs[0]
@@ -56,6 +57,7 @@ def backpropagation(x0, funcArgs):
     dW = np.tensordot(np.transpose(X), dW1_2, axes=1) + rho * W
 
     return np.concatenate((dW, db, dv), axis=None)
+
 
 def loss(x0, funcArgs, test=False):
     X = funcArgs[0]
@@ -94,25 +96,7 @@ def train(X, y, sigma, N, rho, W, b, v, max_iter=1000,
                    options={'maxiter':max_iter})  
     
     return res
-    
 
-def plotting(W, b, v, sigma):
-    fig = plt.figure(figsize=(12, 8))
-    ax = plt.axes(projection='3d')
-    # create the grid
-
-    xs = np.linspace(-2, 2, 50)
-    ys = np.linspace(-3, 3, 50)
-    X, Y = np.meshgrid(xs, ys)
-    XY = np.column_stack([X.ravel(), Y.ravel()])
-    Z = feedforward(XY, W, b, v, sigma).reshape(X.shape)
-    ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
-
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    ax.set_title('F(x) learnt from MLP')
-    plt.show()
 
 sigma_grid = [0.5, 1, 1.5]
 N_grid = [40, 50, 60, 70, 80, 90]
@@ -173,59 +157,40 @@ for t in itertools.product(*iterables):
         N_best = N
         sigma_best = t[0]
         rho_best = t[2]
-        min_loss = val_loss
-        best_params = res.x
-        convergence = res.success
         method_best = t[3]
 
-W = best_params[:int(X.shape[1] * N_best)].reshape((X.shape[1], N_best))
-b = best_params[int(X.shape[1] * N_best):int(X.shape[1] * N_best + N_best)]
-v = best_params[int(X.shape[1] * N_best + N_best):]
+# Evaluate best Hyper-parameters
+W = np.random.normal(size=(X.shape[1], N_best))
+b = np.random.normal(size=N_best)
+v = np.random.normal(size=N_best)
 
-print('N')
-print(N_best)
-print('')
-print('sigma')
-print(sigma_best)
-print('')
-print('rho')
-print(rho_best)
-print('')
-print('W')
-print(W)
-print('')
-print('b')
-print(b)
-print('')
-print('v')
-print(v)
-print('')
-print('Loss')
-print(min_loss)
-print('')
-print('Convergence?')
-print(convergence)
-print('')
-print('Best Method?')
-print(method_best)
+x0 = np.concatenate((W, b, v), axis=None)
 
-plotting(W, b, v, sigma_best)
+start = time.time()
+res = train(X, y, sigma=sigma_best,
+            N=N_best, rho=rho_best,
+            W=W, b=b, v=v,
+            max_iter=5000, tol=1e-6,
+            method=method_best, func=loss)
+stop = time.time()
 
-# Save the best hyperparameters
-import json
-import pickle
+funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best]
+funcArgs_train = [X, y, sigma_best, N_best, rho_best]
 
-dict = {"W": W,
-        "b": b,
-        "v": v,
-        "sigma": sigma_best}
+test_loss = loss(res.x, funcArgs_test, test=True)
+train_loss = loss(res.x, funcArgs_train, test=True)
 
-with open('q11_values_for_prediction.pickle', 'wb') as handle:
-    pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-with open('config/q_1_1_cfg.json', 'w') as conf_file:
-    json.dump({
-        'SIGMA': sigma_best,
-        'RHO': rho_best,
-        'N': N_best
-    }, conf_file)
+W = res.x[:int(X.shape[1] * N_best)].reshape((X.shape[1], N_best))
+b = res.x[int(X.shape[1] * N_best):int(X.shape[1] * N_best + N_best)]
+v = res.x[int(X.shape[1] * N_best + N_best):]
+
+print('Number of neurons N chosen:', N_best)
+print('Value of σ chosen:', sigma_best)
+print('Value of ρ chosen:', rho_best)
+print('Optimization solver chosen:', method_best)
+print('Number of function evaluations:', res.nfev)
+print('Number of gradient evaluations:', res.njev)
+print('Time for optimizing the network:', round(stop-start, 2), 's')
+print('Training Error:', train_loss)
+print('Test Error', test_loss)
