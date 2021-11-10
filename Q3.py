@@ -195,9 +195,6 @@ def loss_step2(x0, funcArgs, test=False):
 
     :return the result of the loss inside of the "res" object.
     """
-    global Nfeval_step2
-    global curr_loss_step2
-    global prev_loss_step2
     X = funcArgs[0]
     y = funcArgs[1]
     sigma = funcArgs[2]
@@ -214,14 +211,7 @@ def loss_step2(x0, funcArgs, test=False):
     if test:
         res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
     else:
-        if Nfeval_step2 == 1:
-            prev_loss_step2 = None
-        else:
-            prev_loss_step2 = curr_loss_step2
-
         res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm ** 2) * 0.5
-        curr_loss_step2 = res
-        Nfeval_step2 += 1
 
     return res
 
@@ -244,21 +234,6 @@ def loss_test(X, y, sigma, N, rho, W, b, v):
     res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
 
     return res
-
-class Callback:
-    def __init__(self, tol=1e-5):
-        self._tol = tol
-
-    def __call__(self, tol):
-        perc_evaluated = Nfeval_step2 / Nmaxit
-
-        if prev_loss_step2 is not None and perc_evaluated > 0.5 and abs(prev_loss_step2 - curr_loss_step2) < self._tol:
-            # print('1')
-            return True
-        # else:
-            # print('2')
-
-        return False
 
 def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
           tol=1e-5, method='CG', func=loss_step1):
@@ -316,15 +291,12 @@ def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
 
     funcArgs = [X, y, sigma, N, rho, v]
 
-    cb = Callback(tol=1e-5)
-
     res = minimize(func,
                    x0,
                    args=funcArgs,
                    method=method,
                    tol=tol,
                    jac=backpropagation_step2,
-                   callback=cb,
                    options={'maxiter': max_iter})
 
     return res
@@ -349,7 +321,7 @@ def plotting(title, W, b, v, sigma):
     plt.show()
 
 # Define the best value obtained for N
-N_best = 80
+N_best = 70
 
 # Define the best value obtained for Sigma
 sigma_best = 1
@@ -358,51 +330,66 @@ sigma_best = 1
 rho_best = 1e-05
 
 # Initialize current loss for early stopping
-curr_loss_step2 = None
-prev_loss_step2 = None
-Nfeval_step2 = 1
-global Nmaxit
-Nmaxit = 4000
 
 # Set the number of random trials for W and b
-trials = 6
+max_trials = 10
 best_val_loss = 1000
+
+# Get random initialization for W
+W_init = np.random.randn(X.shape[1], N_best)
+
+# Get random initialization for b
+b_init = np.random.randn(N_best)
+
+# Get random initialization for v
+v_init = np.random.randn(N_best)
+
+# Threshold for early stopping
+thres = 1e-3
+
+# Initialize the previous validation loss
+losses = [1000]
+
+# Initialize counters
+niter_step1 = 0
+nfev_step1 = 0
+njev_step1 = 0
+niter_step2 = 0
+nfev_step2 = 0
+njev_step2 = 0
+time_step1 = 0
+time_step2 = 0
+time_total = 0
 
 start0 = time.time()
 # Iterate /trials/ times
-for _ in tqdm(range(trials)):
-    
-    # Get random initialization for W
-    W = np.random.randn(X.shape[1], N_best)
-
-    # Get random initialization for b
-    b = np.random.randn(N_best)
-
-    # Get random initialization for v
-    v = np.random.randn(N_best)
+for i in tqdm(range(max_trials)):
 
     ########################################
     ##### step1: convex minimization wrt v
     ########################################
 
+    # Set the tolerance to use in the minimizations (change it in each iteration exponentially)
+    tol = 1e-2 * (1 + 2)**(-i)
+    print("Tolerance:",tol)
     start = time.time()
     res_step1 = train_step1(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
-                W_init=W, b_init=b, v_init=v,
-                max_iter=Nmaxit, tol=1e-6,
-                method='BFGS', func=loss_step1)
+                W_init=W_init, b_init=b_init, v_init=v_init,
+                max_iter=4000, tol=tol,
+                method='SLSQP', func=loss_step1)
     stop1 = time.time()
     # Extract the values for v after optimization
     v = res_step1.x
 
     # Number of iterations for step 1
-    niter_step1 = res_step1.nit
+    niter_step1 += res_step1.nit
 
     # Number of functions evaluation for step 1
-    nfev_step1 = res_step1.nfev
+    nfev_step1 += res_step1.nfev
 
     # Number of gradient evaluation for step 1
-    njev_step1 = res_step1.njev
+    njev_step1 += res_step1.njev
 
     ##################################################
     ##### step2: non-convex minimization wrt w and b
@@ -410,24 +397,25 @@ for _ in tqdm(range(trials)):
     start2 = time.time()
     res_step2 = train_step2(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
-                W_init=W, b_init=b, v=v,
-                max_iter=Nmaxit, tol=1e-6,
-                method='BFGS', func=loss_step2)
+                W_init=W_init, b_init=b_init, v=v,
+                max_iter=4000, tol=tol,
+                method='CG', func=loss_step2)
     stop2 = time.time()
 
     # Number of iterations for step 2
-    niter_step2 = res_step2.nit
+    niter_step2 += res_step2.nit
 
     # Number of functions evaluation for step 2
-    nfev_step2 = res_step2.nfev
+    nfev_step2 += res_step2.nfev
 
     # Number of gradient evaluation for step 2
-    njev_step2 = res_step2.njev
-    
+    njev_step2 += res_step2.njev
+
     # Get the loss for validation set
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
     current_val_loss = loss_step2(res_step2.x, funcArgs_test, test=True)
+    losses.append(current_val_loss)
 
     # Extract the loss for the train set
     current_train_loss = res_step2.fun
@@ -451,11 +439,18 @@ for _ in tqdm(range(trials)):
         best_nfev_step2 = nfev_step2
         best_njev_step1 = njev_step1
         best_njev_step2 = njev_step2
-        time_step1 = round(stop1 - start, 1)
-        time_step2 = round(stop2 - start, 1)
+        time_step1 += round(stop1 - start, 1)
+        time_step2 += round(stop2 - start, 1)
 
     stop = time.time()
-    time_total = round(stop - start, 1)
+    # time_total += round(stop - start, 1)
+    print("loss actual:",losses[-1])
+    print("loss anterior:",losses[-2])
+    print("thres:",thres)
+
+    # Define the early stopping criteria
+    if abs(losses[-1] - losses[-2]) < thres:
+        break
 
     print('')
     print('Time required by optimization:', round(stop - start, 1), ' s')
@@ -518,9 +513,7 @@ print('Time required by step 1:', time_step1, ' s')
 print('')
 print('Time required by step 2:', time_step2, ' s')
 print('')
-print('Time required by total:', time_total, ' s')
-print('')
-print('Time required by whole optimization:', round(stop0 - start0, 1), ' s')
+print('Time required by whole optimization:', time_step1 + time_step2, ' s')
 print('')
 print('Train Loss')
 print(best_train_loss)
@@ -531,7 +524,6 @@ print(convergence)
 
 # Plot function estimated from data
 plotting("F(x) learnt from MLP", best_W, best_b, best_v, sigma_best)
-
 
 # Save values for future predictions
 dict = {"W": best_W,
