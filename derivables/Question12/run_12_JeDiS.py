@@ -114,27 +114,6 @@ def train(X, y, sigma, N, rho, c_init,
     return res
 
 
-def plotting(c, v, sigma):
-
-    fig = plt.figure(figsize=(12, 8))
-    ax = plt.axes(projection='3d')
-    #create the grid
-    xs = np.linspace(-2, 2, 50)
-    ys = np.linspace(-3, 3, 50)
-    X, Y = np.meshgrid(xs, ys)
-    XY = np.column_stack([X.ravel(), Y.ravel()])
-    Z = feedforward(XY, c, v, sigma).reshape(X.shape)
-    ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
-
-    ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
-
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    ax.set_title('F(x) learnt from RBS')
-    plt.show()
-
-
 sigma_grid = [0.5, 1, 1.5]
 N_grid = [40, 50, 60, 70, 80, 90]
 rho_grid = np.linspace(1e-5, 1e-3, 3)
@@ -190,55 +169,38 @@ for t in itertools.product(*iterables):
         N_best = N
         sigma_best = t[0]
         rho_best = t[2]
-        min_loss = val_loss
-        best_params = res.x
-        convergence = res.success
         method_best = t[3]
 
-c=best_params[:X.shape[1]*N_best].reshape((X.shape[1],N_best))
-v=best_params[X.shape[1]*N_best:]
+# Evaluate best Hyper-parameters
+c = np.random.normal(size=(X.shape[1], N_best))
+v = np.random.normal(size=N_best)
 
-print('N')
-print(N_best)
-print('')
-print('sigma')
-print(sigma_best)
-print('')
-print('rho')
-print(rho_best)
-print('')
-print('c')
-print(c)
-print('')
-print('v')
-print(v)
-print('')
-print('Validation Loss')
-print(min_loss)
-print('')
-print('Convergence?')
-print(convergence)
-print('')
-print('Best Method?')
-print(method_best)
+x0 = np.concatenate((c, v), axis=None)
 
-plotting(c, v, sigma_best)
+start = time.time()
+res = train(X, y, sigma=sigma_best,
+            N=N_best, rho=rho_best,
+            c=c, v=v,
+            max_iter=5000, tol=1e-6,
+            method=method_best, func=loss)
+stop = time.time()
+
+funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best]
+funcArgs_train = [X, y, sigma_best, N_best, rho_best]
+
+test_loss = loss(res.x, funcArgs_test, test=True)
+train_loss = loss(res.x, funcArgs_train, test=True)
 
 
-# Save the best hyperparameters
-import json
-import pickle
+c = res.x[:int(X.shape[1] * N_best)].reshape((X.shape[1], N_best))
+v = res.x[int(X.shape[1] * N_best + N_best):]
 
-dict = {"c": c,
-        "v": v,
-        "sigma": sigma_best}
-
-with open('q12_values_for_prediction.pickle', 'wb') as handle:
-    pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-with open('config/q_1_2_cfg.json', 'w') as conf_file:
-    json.dump({
-        'SIGMA': sigma_best,
-        'RHO': rho_best,
-        'N': N_best
-    }, conf_file)
+print('Number of neurons N chosen:', N_best)
+print('Value of σ chosen:', sigma_best)
+print('Value of ρ chosen:', rho_best)
+print('Optimization solver chosen:', method_best)
+print('Number of function evaluations:', res.nfev)
+print('Number of gradient evaluations:', res.njev)
+print('Time for optimizing the network:', round(stop-start, 2), 's')
+print('Training Error:', train_loss)
+print('Test Error', test_loss)
