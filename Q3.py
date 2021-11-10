@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from scipy import optimize
 from sklearn.model_selection import train_test_split
 import itertools
 import matplotlib.pyplot as plt
 import time
 from tqdm import tqdm
-
+import json
+import pickle
 # Define random seed for numpy operations
 seed = 1939671
 np.random.seed(seed)
@@ -96,8 +98,6 @@ def backpropagation_step1(x0, funcArgs):
     dW1_2 = dW1_1 * dtanh
 
     dv = np.dot(dJdf, a_2) + rho * v
-    # db = np.sum(dW1_2, axis=0) + rho * b
-    # dW = np.tensordot(np.transpose(X), dW1_2, axes=1) + rho * W
 
     return np.concatenate((dv), axis=None)
 
@@ -177,6 +177,8 @@ def loss_step1(x0, funcArgs, test=False):
 
     return res
 
+
+
 def loss_step2(x0, funcArgs, test=False):
     """
     Compute the loss of the MLP for the second step (with respect to w and b).
@@ -193,6 +195,9 @@ def loss_step2(x0, funcArgs, test=False):
 
     :return the result of the loss inside of the "res" object.
     """
+    global Nfeval_step2
+    global curr_loss_step2
+    global prev_loss_step2
     X = funcArgs[0]
     y = funcArgs[1]
     sigma = funcArgs[2]
@@ -209,7 +214,14 @@ def loss_step2(x0, funcArgs, test=False):
     if test:
         res = ((np.sum((pred - y) ** 2)) * P ** (-1)) * 0.5
     else:
+        if Nfeval_step2 == 1:
+            prev_loss_step2 = None
+        else:
+            prev_loss_step2 = curr_loss_step2
+
         res = ((np.sum((pred - y) ** 2)) * P ** (-1) + rho * norm ** 2) * 0.5
+        curr_loss_step2 = res
+        Nfeval_step2 += 1
 
     return res
 
@@ -233,26 +245,20 @@ def loss_test(X, y, sigma, N, rho, W, b, v):
 
     return res
 
+class Callback:
+    def __init__(self, tol=1e-5):
+        self._tol = tol
 
-def feedforwardplot(x1, x2, W, b, v, sigma):
-    """
-    Compute the forward pass of the MLP on a tuple (x1, x2).
+    def __call__(self, tol):
+        perc_evaluated = Nfeval_step2 / Nmaxit
 
-    :param x1: first coordinate
-    :param x2: second coordinate
-    :param W: first layer weights
-    :param b: bias
-    :param v: output layer weights.
-    :param sigma: hyperparameter for tanh
+        if prev_loss_step2 is not None and perc_evaluated > 0.5 and abs(prev_loss_step2 - curr_loss_step2) < self._tol:
+            # print('1')
+            return True
+        # else:
+            # print('2')
 
-    :return predicted value f(x1,x2)
-    """
-    X = np.array([x1, x2])
-    linear_layer = (np.dot(X, W) + b)
-    activation = tanh(linear_layer, sigma)
-    pred = np.dot(activation, v)
-
-    return pred
+        return False
 
 def train_step1(X, y, sigma, N, rho, W_init, b_init, v_init, max_iter=1000,
           tol=1e-5, method='CG', func=loss_step1):
@@ -310,51 +316,40 @@ def train_step2(X, y, sigma, N, rho, W_init, b_init, v, max_iter=1000,
 
     funcArgs = [X, y, sigma, N, rho, v]
 
+    cb = Callback(tol=1e-5)
+
     res = minimize(func,
                    x0,
                    args=funcArgs,
                    method=method,
                    tol=tol,
                    jac=backpropagation_step2,
+                   callback=cb,
                    options={'maxiter': max_iter})
 
     return res
 
-def plotting(W, b, v, sigma):
+def plotting(title, W, b, v, sigma):
     """
-    Plot the estimated function with given parameters
-    :param W: first layer weights
-    :param b: bias
-    :param v: output layer weights
-    :param sigma: hyperparameter for tanh
-
-    :return Show plot
+    Plot the function in (-3,3)x(-2,2).
+    :param title
     """
     fig = plt.figure(figsize=(12, 8))
     ax = plt.axes(projection='3d')
-    # create the grid
-    x = np.linspace(-3, 3, 50)
-    y = np.linspace(-2, 2, 50)
-    X_plot, Y_plot = np.meshgrid(x, y)
-
-    Z = []
-    for x1 in x:
-        z = []
-        for x2 in y:
-            z.append(feedforwardplot(x1, x2, W, b, v, sigma))
-        Z.append(z)
-    Z = np.array(Z)
-
-    ax.plot_surface(X_plot, Y_plot, Z, rstride=1, cstride=1, cmap='viridis', edgecolor='none')
-
+    xs = np.linspace(-2, 2, 50)
+    ys = np.linspace(-3, 3, 50)
+    X, Y = np.meshgrid(xs, ys)
+    XY = np.column_stack([X.ravel(), Y.ravel()])
+    Z = feedforward(XY, W, b, v, sigma).reshape(X.shape)
+    ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
-    ax.set_title('F(x) learnt from MLP')
+    ax.set_title(title)
     plt.show()
 
 # Define the best value obtained for N
-N_best = 60
+N_best = 80
 
 # Define the best value obtained for Sigma
 sigma_best = 1
@@ -362,14 +357,21 @@ sigma_best = 1
 # Define the best value obtained for Rho
 rho_best = 1e-05
 
+# Initialize current loss for early stopping
+curr_loss_step2 = None
+prev_loss_step2 = None
+Nfeval_step2 = 1
+global Nmaxit
+Nmaxit = 4000
+
 # Set the number of random trials for W and b
-trials = 12
+trials = 6
 best_val_loss = 1000
 
 start0 = time.time()
 # Iterate /trials/ times
 for _ in tqdm(range(trials)):
-
+    
     # Get random initialization for W
     W = np.random.randn(X.shape[1], N_best)
 
@@ -387,11 +389,20 @@ for _ in tqdm(range(trials)):
     res_step1 = train_step1(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W, b_init=b, v_init=v,
-                max_iter=4000, tol=1e-6,
-                method='CG', func=loss_step1)
+                max_iter=Nmaxit, tol=1e-6,
+                method='BFGS', func=loss_step1)
     stop1 = time.time()
     # Extract the values for v after optimization
     v = res_step1.x
+
+    # Number of iterations for step 1
+    niter_step1 = res_step1.nit
+
+    # Number of functions evaluation for step 1
+    nfev_step1 = res_step1.nfev
+
+    # Number of gradient evaluation for step 1
+    njev_step1 = res_step1.njev
 
     ##################################################
     ##### step2: non-convex minimization wrt w and b
@@ -400,10 +411,19 @@ for _ in tqdm(range(trials)):
     res_step2 = train_step2(X, y, sigma=sigma_best,
                 N=N_best, rho=rho_best,
                 W_init=W, b_init=b, v=v,
-                max_iter=4000, tol=1e-6,
-                method='CG', func=loss_step2)
+                max_iter=Nmaxit, tol=1e-6,
+                method='BFGS', func=loss_step2)
     stop2 = time.time()
 
+    # Number of iterations for step 2
+    niter_step2 = res_step2.nit
+
+    # Number of functions evaluation for step 2
+    nfev_step2 = res_step2.nfev
+
+    # Number of gradient evaluation for step 2
+    njev_step2 = res_step2.njev
+    
     # Get the loss for validation set
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
@@ -425,8 +445,17 @@ for _ in tqdm(range(trials)):
         best_b = b
         best_v = v
         convergence = res_step2.success
+        best_iter_step1 = niter_step1
+        best_iter_step2 = niter_step2
+        best_nfev_step1 = nfev_step1
+        best_nfev_step2 = nfev_step2
+        best_njev_step1 = njev_step1
+        best_njev_step2 = njev_step2
+        time_step1 = round(stop1 - start, 1)
+        time_step2 = round(stop2 - start, 1)
 
     stop = time.time()
+    time_total = round(stop - start, 1)
 
     print('')
     print('Time required by optimization:', round(stop - start, 1), ' s')
@@ -450,24 +479,68 @@ print('rho')
 print(rho_best)
 print('')
 print('W')
-print(W)
+print(best_W)
 print('')
 print('b')
-print(b)
+print(best_b)
 print('')
 print('v')
-print(v)
+print(best_v)
+print('')
+print('Iterations step 1')
+print(best_iter_step1)
+print('')
+print('Iterations step 2')
+print(best_iter_step2)
+print('')
+print('Outer Iterations')
+print(best_iter_step1 + best_iter_step2)
+print('')
+print('nfev step 1')
+print(best_nfev_step1)
+print('')
+print('nfev step 2')
+print(best_nfev_step2)
+print('')
+print('nfev total')
+print(best_nfev_step1 + best_nfev_step2)
+print('')
+print('njev step 1')
+print(best_njev_step1)
+print('')
+print('njev step 2')
+print(best_njev_step2)
+print('')
+print('njev total')
+print(best_njev_step1 + best_njev_step2)
+print('')
+print('Time required by step 1:', time_step1, ' s')
+print('')
+print('Time required by step 2:', time_step2, ' s')
+print('')
+print('Time required by total:', time_total, ' s')
+print('')
+print('Time required by whole optimization:', round(stop0 - start0, 1), ' s')
 print('')
 print('Train Loss')
 print(best_train_loss)
 print('Validation Loss')
 print(best_val_loss)
-print('')
 print('Convergence?')
 print(convergence)
-print('')
-print('')
-print('Time required by optimization:', round(stop0 - start0, 1), ' s')
 
 # Plot function estimated from data
-plotting(W, b, v, sigma_best)
+plotting("F(x) learnt from MLP", best_W, best_b, best_v, sigma_best)
+
+
+# Save values for future predictions
+dict = {"W": best_W,
+        "b": best_b,
+        "v": best_v,
+        "sigma": sigma_best }
+
+with open('q3_values_for_prediction.pickle', 'wb') as handle:
+    pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
