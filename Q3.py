@@ -345,9 +345,9 @@ b_init = np.random.randn(N_best)
 v_init = np.random.randn(N_best)
 
 # Threshold for early stopping
-thres = 1e-4
+thres = 1e-5
 
-# Initialize the previous validation loss
+# Initialize the previous training loss
 losses = [1000]
 
 # Initialize counters
@@ -415,10 +415,11 @@ for i in tqdm(range(max_trials)):
     funcArgs_test = [X_test, y_test, sigma_best, N_best, rho_best, v]
 
     current_val_loss = loss_block2(res_block2.x, funcArgs_test, test=True)
-    losses.append(current_val_loss)
+
 
     # Extract the loss for the train set
     current_train_loss = res_block2.fun
+    losses.append(current_train_loss)
 
     # Extract the values for W and b after optimization
     best_params = res_block2.x
