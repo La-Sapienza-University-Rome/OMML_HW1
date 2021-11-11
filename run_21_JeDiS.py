@@ -30,13 +30,13 @@ tbc = TwoBlocksContext(library='cvx', algorithm='MLP', hyper_param_cfg_file='con
 options = {
     'solver':'ECOS',
     'max_iters':10000,
-    'lbound_W':-2.5,
-    'ubound_W':1,
-    'mean_W':0,
+    'lbound_W':-1.8,
+    'ubound_W':1.558,
+    'mean_W':0.02,
     'std_W':1,
-    'lbound_b':-3,
-    'ubound_b':1.8,
-    'mean_b':-0.1,
+    'lbound_b':-2.9,
+    'ubound_b':3.8,
+    'mean_b':-0.105,
     'std_b':0.97
 }
 
