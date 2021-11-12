@@ -23,7 +23,8 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 
 # Get the object instance
-tbc = TwoBlocksContext(library='cvx', algorithm='MLP', hyper_param_cfg_file='config/q_1_1_cfg.json')
+library = 'cvx' # 'numpy'
+tbc = TwoBlocksContext(library=library, algorithm='MLP', hyper_param_cfg_file='config/q_1_1_cfg.json')
 
 
 # Define the optional parameters. Check classes_and_functions.Q2.two_block.py for details 
@@ -39,6 +40,19 @@ options = {
     'mean_b':-0.105,
     'std_b':0.97
 }
+# # if library=numpy
+# options = {
+#     'solver_options':{'method':'BFGS'},
+#     'max_iters':10000,
+#     'lbound_W':-1.8,
+#     'ubound_W':1.558,
+#     'mean_W':0.02,
+#     'std_W':1,
+#     'lbound_b':-2.9,
+#     'ubound_b':3.8,
+#     'mean_b':-0.105,
+#     'std_b':0.97
+# }
 
 
 # Fit the data --> optimize v /trials/ times with different realizations of W and b

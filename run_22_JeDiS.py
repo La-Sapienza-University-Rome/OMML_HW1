@@ -23,7 +23,8 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 
 # Get the object instance
-tbc = TwoBlocksContext(library='cvx', algorithm='RBF', hyper_param_cfg_file='config/q_1_2_cfg.json')
+library = 'cvx' # 'numpy'
+tbc = TwoBlocksContext(library=library, algorithm='RBF', hyper_param_cfg_file='config/q_1_2_cfg.json')
 
 
 # Define the optional parameters. Check classes_and_functions.Q2.two_block.py for details 
@@ -32,6 +33,13 @@ options = {
     'max_iters':10000,
     'centers_selection':'random' # 'kmeans'
 }
+# # if library=numpy
+# options = {
+#     'solver_options':{'method':'SLSQP'},
+#     'solver':'ECOS',
+#     'max_iters':10000,
+#     'centers_selection':'random' # 'kmeans'
+# }
 
 
 # Fit the data --> optimize v /trials/ times with different centers c
