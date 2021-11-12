@@ -102,12 +102,6 @@ class ModelCVX(Model):
         return cvx.matmul(self._rbf(X).T, self.v)
 
 
-    
-    def _set_state(self, **kwargs):
-        self.v = cvx.Variable(shape=(self.N,1), value=np.random.normal(size=(self.N,1)), name='v')
-        super()._set_state(**kwargs)
-
-
 
     def _save_state(self, state, **kwargs):
         if kwargs['restore']:
@@ -134,6 +128,12 @@ class ModelCVX(Model):
             self.state['printable_info']['Time for optimizing the network'] = round(state.solver_stats.solve_time, 6)
             self.state['printable_info']['Training Error'] = round(kwargs['train_loss'], 6)
             self.state['printable_info']['Test Error'] = round(kwargs['test_loss'], 6)
+
+
+
+    def _set_state(self, **kwargs):
+        self.v = cvx.Variable(shape=(self.N,1), value=np.random.normal(size=(self.N,1)), name='v')
+        super()._set_state(**kwargs)
 
     
 
@@ -166,6 +166,7 @@ class ModelNumpy(Model):
 
 
     def feedforward(self, X):
+        self.layer_1_cache = None
         return np.squeeze(self._feedforward(X))
 
 
@@ -174,24 +175,30 @@ class ModelNumpy(Model):
         self.X, self.y = Xy
         X_test, y_test = Xy_test
         best_test_loss = 1e4
+        if 'solver_options' not in kwargs.keys():
+            kwargs['solver_options']['method'] = 'SLSQP'
         start = time.time()
         for _ in tqdm(range(trials)):
             t0 = time.time()
             self._set_state(**kwargs)
-            problem_res = minimize(self._loss, self.v, jac=self._gradient, method='SLSQP')
+            problem_res = minimize(self._loss, self.v, jac=self._gradient, **kwargs['solver_options'])
             self.v = np.expand_dims(problem_res.x, axis=1)
             current_test_loss = self.loss(X_test, y_test, test=True)
             t1 = time.time()
             if current_test_loss < best_test_loss:
                 best_test_loss = current_test_loss
-                self._save_state(problem_res, test_loss=best_test_loss, solver_time=round(t1-t0, 5), restore=False)
+                best_train_loss = self.loss(self.X, self.y, test=True)
+                self._save_state(problem_res, train_loss=best_train_loss, test_loss=best_test_loss, 
+                                 solver=kwargs['solver_options']['method'], solver_time=round(t1-t0, 5), restore=False)
         stop = time.time()
         self._save_state(problem_res, restore=True, total_elapsed_time=f'{round(stop-start, 3)}s')
         return self
 
 
 
-    def loss(self, X, y, test=False):
+    def loss(self, X, y, test=False, cache=False):
+        if not cache:
+            self.layer_1_cache = None
         P = y.shape[0]
         pred = self._feedforward(X)
         res = np.sum((pred - y)**2) / (2*P)
@@ -214,14 +221,17 @@ class ModelNumpy(Model):
 
 
     def _feedforward_MLP(self, X):
-        linear_layer = np.dot(X, self.W) + self.b
-        activation = self._tanh(linear_layer)
-        return np.dot(activation, self.v)
+        if self.layer_1_cache is None:
+            linear_layer = np.dot(X, self.W) + self.b
+            self.layer_1_cache = self._tanh(linear_layer)
+        return np.dot(self.layer_1_cache, self.v)
 
 
 
     def _feedforward_RBF(self, X):
-        return np.dot(self._rbf(X).T, self.v)
+        if self.layer_1_cache is None:
+            self.layer_1_cache = self._rbf(X).T
+        return np.dot(self.layer_1_cache, self.v)
 
 
     
@@ -229,11 +239,11 @@ class ModelNumpy(Model):
         self.v = np.expand_dims(x0, axis=1)
         P = self.y.shape[0]
         if self.algorithm == 'MLP':
-            a = self._tanh(np.dot(self.X, self.W) + self.b)
+            self.layer_1_cache = self._tanh(np.dot(self.X, self.W) + self.b) if self.layer_1_cache is None else self.layer_1_cache
         else:
-            a = self._rbf(self.X).T
-        dJdf = (1 / P) * (np.dot(a, self.v) - self.y)
-        dv = np.dot(a.T, dJdf) + self.RHO * self.v
+            self.layer_1_cache = self._rbf(self.X).T if self.layer_1_cache is None else self.layer_1_cache
+        dJdf = (1 / P) * (np.dot(self.layer_1_cache, self.v) - self.y)
+        dv = np.dot(self.layer_1_cache.T, dJdf) + self.RHO * self.v
         return np.squeeze(dv)
 
     
@@ -268,14 +278,16 @@ class ModelNumpy(Model):
             self.state['printable_info']['Number of neurons N chosen'] = self.N
             self.state['printable_info']['Value of σ chosen'] = self.SIGMA
             self.state['printable_info']['Value of ρ chosen'] = self.RHO
-            self.state['printable_info']['Optimization solver chosen'] = 'SLSQP'
+            self.state['printable_info']['Optimization solver chosen'] = kwargs['solver']
             self.state['printable_info']['Number of function evaluations'] = state.nfev
+            self.state['printable_info']['Number of gradient evaluations'] = state.njev
             self.state['printable_info']['Time for optimizing the network'] = kwargs['solver_time']
-            self.state['printable_info']['Training Error'] = state.fun
+            self.state['printable_info']['Training Error'] = kwargs['train_loss']
             self.state['printable_info']['Test Error'] = kwargs['test_loss']
 
 
 
     def _set_state(self, **kwargs):
+        self.layer_1_cache = None
         self.v = np.random.normal(size=(self.N,1))
         super()._set_state(**kwargs)
