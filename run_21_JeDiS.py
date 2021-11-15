@@ -32,17 +32,20 @@ if study_distribution:
     with open('/home/stefano/Desktop/q11_values_for_prediction.pickle', 'rb') as in_file:
         q11_weights = pickle.load(in_file)
 
-    # Plot between -2 and 2 with .001 steps.
     x_axis = np.arange(-2, 2, 0.001)
-    plt.plot(x_axis, norm.pdf(x_axis,0.02,1), linewidth=3, linestyle='--', color='orchid')
+    plt.plot(x_axis, norm.pdf(x_axis,0.02,1), linewidth=3, linestyle='--', color='orange')
     plt.hist(q11_weights['W'].flatten(), bins=20, density=True)
+    plt.axvline(np.average(q11_weights['W']), linewidth=2, linestyle='-.', color='orchid')
     plt.suptitle('Distribution of W')
+    plt.legend(['', 'Average W', ''])
     plt.show()
 
     x_axis = np.arange(-3, 3.5, 0.001)
     plt.plot(x_axis, norm.pdf(x_axis,-0.105,0.97), linewidth=3, linestyle='--')
     plt.hist(q11_weights['b'].flatten(), bins=20, color='orange', density=True)
+    plt.axvline(np.average(q11_weights['b']), linewidth=2, linestyle='-.', color='orchid')
     plt.suptitle('Distribution of b')
+    plt.legend(['', 'Average b', ''])
     plt.show()
 
     exit(0)
