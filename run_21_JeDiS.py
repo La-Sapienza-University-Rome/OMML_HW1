@@ -22,6 +22,32 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 
 
+# Study the distribution of W and b
+study_distribution = True
+if study_distribution:
+    import pickle
+    import matplotlib.pyplot as plt
+    from scipy.stats import norm
+
+    with open('/home/stefano/Desktop/q11_values_for_prediction.pickle', 'rb') as in_file:
+        q11_weights = pickle.load(in_file)
+
+    # Plot between -2 and 2 with .001 steps.
+    x_axis = np.arange(-2, 2, 0.001)
+    plt.plot(x_axis, norm.pdf(x_axis,0.02,1), linewidth=3, linestyle='--', color='orchid')
+    plt.hist(q11_weights['W'].flatten(), bins=20, density=True)
+    plt.suptitle('Distribution of W')
+    plt.show()
+
+    x_axis = np.arange(-3, 3.5, 0.001)
+    plt.plot(x_axis, norm.pdf(x_axis,-0.105,0.97), linewidth=3, linestyle='--')
+    plt.hist(q11_weights['b'].flatten(), bins=20, color='orange', density=True)
+    plt.suptitle('Distribution of b')
+    plt.show()
+
+    exit(0)
+
+
 # Get the object instance
 library = 'cvx' # 'numpy'
 tbc = TwoBlocksContext(library=library, algorithm='MLP', hyper_param_cfg_file='config/q_1_1_cfg.json')
