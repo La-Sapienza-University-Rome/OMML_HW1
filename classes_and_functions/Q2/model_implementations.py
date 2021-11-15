@@ -6,7 +6,7 @@ This file contains the concrete models ModelCVX and ModelNumpy
 import time
 
 import cvxpy as cvx
-from scipy.optimize import least_squares
+from scipy.optimize import minimize
 from tqdm import tqdm
 
 from classes_and_functions.Q2.model_interface import *
@@ -102,12 +102,6 @@ class ModelCVX(Model):
         return cvx.matmul(self._rbf(X).T, self.v)
 
 
-    
-    def _set_state(self, **kwargs):
-        self.v = cvx.Variable(shape=(self.N,1), value=np.random.normal(size=(self.N,1)), name='v')
-        super()._set_state(**kwargs)
-
-
 
     def _save_state(self, state, **kwargs):
         if kwargs['restore']:
@@ -134,6 +128,12 @@ class ModelCVX(Model):
             self.state['printable_info']['Time for optimizing the network'] = round(state.solver_stats.solve_time, 6)
             self.state['printable_info']['Training Error'] = round(kwargs['train_loss'], 6)
             self.state['printable_info']['Test Error'] = round(kwargs['test_loss'], 6)
+
+
+
+    def _set_state(self, **kwargs):
+        self.v = cvx.Variable(shape=(self.N,1), value=np.random.normal(size=(self.N,1)), name='v')
+        super()._set_state(**kwargs)
 
     
 
@@ -166,10 +166,8 @@ class ModelNumpy(Model):
 
 
     def feedforward(self, X):
-        if self.algorithm == 'MLP':
-            return np.squeeze(self._feedforward_MLP(X))
-        else:
-            return np.squeeze(self._feedforward_RBF(X))
+        self.layer_1_cache = None
+        return np.squeeze(self._feedforward(X))
 
 
 
@@ -177,26 +175,32 @@ class ModelNumpy(Model):
         self.X, self.y = Xy
         X_test, y_test = Xy_test
         best_test_loss = 1e4
+        if 'solver_options' not in kwargs.keys():
+            kwargs['solver_options']['method'] = 'SLSQP'
         start = time.time()
         for _ in tqdm(range(trials)):
             t0 = time.time()
             self._set_state(**kwargs)
-            problem_res = least_squares(self._residuals, self.v, jac=self._gradient)
-            self.v = problem_res.x
-            current_test_loss = self.loss(X_test, y_test, test=False)
+            problem_res = minimize(self._loss, self.v, jac=self._gradient, **kwargs['solver_options'])
+            self.v = np.expand_dims(problem_res.x, axis=1)
+            current_test_loss = self.loss(X_test, y_test, test=True)
             t1 = time.time()
             if current_test_loss < best_test_loss:
                 best_test_loss = current_test_loss
-                self._save_state(problem_res, test_loss=best_test_loss, solver_time=round(t1-t0, 5), restore=False)
+                best_train_loss = self.loss(self.X, self.y, test=True)
+                self._save_state(problem_res, train_loss=best_train_loss, test_loss=best_test_loss, 
+                                 solver=kwargs['solver_options']['method'], solver_time=round(t1-t0, 5), restore=False)
         stop = time.time()
         self._save_state(problem_res, restore=True, total_elapsed_time=f'{round(stop-start, 3)}s')
         return self
 
 
 
-    def loss(self, X, y, test=False):
+    def loss(self, X, y, test=False, cache=False):
+        if not cache:
+            self.layer_1_cache = None
         P = y.shape[0]
-        pred = self.feedforward(X)
+        pred = self._feedforward(X)
         res = np.sum((pred - y)**2) / (2*P)
         if not test:
             res = res + 0.5 * self.RHO * np.linalg.norm(self.v)**2
@@ -208,45 +212,50 @@ class ModelNumpy(Model):
     # Protected Methods
     ###########################
 
+    def _feedforward(self, X):
+        if self.algorithm == 'MLP':
+            return self._feedforward_MLP(X)
+        else:
+            return self._feedforward_RBF(X)
+
+
+
     def _feedforward_MLP(self, X):
-        linear_layer = np.dot(X, self.W) + self.b
-        activation = self._tanh(linear_layer)
-        return np.dot(activation, self.v)
+        if self.layer_1_cache is None:
+            linear_layer = np.dot(X, self.W) + self.b
+            self.layer_1_cache = self._tanh(linear_layer)
+        return np.dot(self.layer_1_cache, self.v)
 
 
 
     def _feedforward_RBF(self, X):
-        return np.dot(self._rbf(X).T, self.v)
-
-
-
-    def _gradient(self, v, **kwargs):
-        self.v = np.expand_dims(v, axis=1)
-        if self.algorithm == 'MLP':
-            linear_layer = np.dot(self.X, self.W) + self.b
-            A = self._tanh(linear_layer)
-        else:
-            A = self._rbf(self.X).T
-        P = len(self.y)
-        return np.concatenate([A, np.full(shape=(self.N, self.N), fill_value=np.sqrt(self.RHO * P))])/P # return np.dot(dz2dv.T, dJdf) + self.RHO * self.v
+        if self.layer_1_cache is None:
+            self.layer_1_cache = self._rbf(X).T
+        return np.dot(self.layer_1_cache, self.v)
 
 
     
-    def _loss(self, v, **kwargs):
-        self.v = np.expand_dims(v, axis=1)
-        return self.loss(self.X, self.y, test=False)
+    def _gradient(self, x0, funcArgs=[]):
+        self.v = np.expand_dims(x0, axis=1)
+        P = self.y.shape[0]
+        if self.algorithm == 'MLP':
+            self.layer_1_cache = self._tanh(np.dot(self.X, self.W) + self.b) if self.layer_1_cache is None else self.layer_1_cache
+        else:
+            self.layer_1_cache = self._rbf(self.X).T if self.layer_1_cache is None else self.layer_1_cache
+        dJdf = (1 / P) * (np.dot(self.layer_1_cache, self.v) - self.y)
+        dv = np.dot(self.layer_1_cache.T, dJdf) + self.RHO * self.v
+        return np.squeeze(dv)
 
+    
 
-
-    def _residuals(self, v):
-        self.v = np.expand_dims(v, axis=1)
-        P = len(self.y)
-        a = np.concatenate([
-                            np.squeeze(self.feedforward(self.X)), 
-                            np.squeeze(np.dot(np.full(shape=(self.N, self.N), fill_value=np.sqrt(self.RHO * P)), self.v))
-                            ], axis=0)
-        b = np.concatenate([np.squeeze(self.y), np.squeeze(np.zeros(shape=self.N))])
-        return np.squeeze(a - b)/np.sqrt(P)
+    def _loss(self, x0, funcArgs=[], test=False):
+        self.v = np.expand_dims(x0, axis=1)
+        P = self.y.shape[0]
+        pred = self._feedforward(self.X)
+        res = (np.sum((pred - self.y)**2)) / (2*P)
+        if not test:
+            res += 0.5 * self.RHO * np.linalg.norm(self.v)**2
+        return res
 
 
 
@@ -261,21 +270,24 @@ class ModelNumpy(Model):
         else:
             if self.algorithm == 'MLP':
                 self.state = {'best_W': self.W.copy(),
-                              'best_b': self.b.copy()}
+                              'best_b': self.b.copy(),
+                              'printable_info':{}}
             else:
-                self.state = {'best_c': self.c.copy()}
-            self.state['best_v'] = state.x
-            self.state['N'] = self.N
-            self.state['SIGMA'] = self.SIGMA
-            self.state['RHO'] = self.RHO
-            self.state['solve_time'] = kwargs['solver_time']
-            self.state['num_iters'] = state.nfev
-            self.state['problem_status'] = state.success
-            self.state['best_train_loss'] = state.cost
-            self.state['best_test_loss'] = kwargs['test_loss']
+                self.state = {'best_c': self.c.copy(), 'printable_info':{}}
+            self.state['best_v'] = state.x.copy()
+            self.state['printable_info']['Number of neurons N chosen'] = self.N
+            self.state['printable_info']['Value of σ chosen'] = self.SIGMA
+            self.state['printable_info']['Value of ρ chosen'] = self.RHO
+            self.state['printable_info']['Optimization solver chosen'] = kwargs['solver']
+            self.state['printable_info']['Number of function evaluations'] = state.nfev
+            self.state['printable_info']['Number of gradient evaluations'] = state.njev
+            self.state['printable_info']['Time for optimizing the network'] = kwargs['solver_time']
+            self.state['printable_info']['Training Error'] = kwargs['train_loss']
+            self.state['printable_info']['Test Error'] = kwargs['test_loss']
 
 
 
     def _set_state(self, **kwargs):
-        self.v = np.random.normal(size=self.N)
+        self.layer_1_cache = None
+        self.v = np.random.normal(size=(self.N,1))
         super()._set_state(**kwargs)
