@@ -1,4 +1,4 @@
-from classes_and_functions.Q2.two_blocks import TwoBlocksContext
+from classes_and_functions.Q2.two_phase_class import TwoPhaseContext
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -6,8 +6,6 @@ import numpy as np
 
 
 
-# Set seed
-np.random.seed(1939671)
 
 # Read and prepare the data
 df = pd.read_csv('DATA.csv')
@@ -24,35 +22,38 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 # Get the object instance
 library = 'cvx' # 'numpy'
-tbc = TwoBlocksContext(library=library, algorithm='RBF', hyper_param_cfg_file='config/q_1_2_cfg.json')
+two_phase = TwoPhaseContext(library=library, algorithm='RBF', hyper_param_cfg_file='config/q_1_2_cfg.json')
 
 
 # Define the optional parameters. Check classes_and_functions.Q2.two_block.py for details 
-options = {
-    'solver':'ECOS',
-    'max_iters':10000,
-    'centers_selection':'random' # 'kmeans'
-}
-# # if library=numpy
-# options = {
-#     'solver_options':{'method':'SLSQP'},
-#     'solver':'ECOS',
-#     'max_iters':10000,
-#     'centers_selection':'random' # 'kmeans'
-# }
+if library == 'cvx':
+    options = {
+        'solver':'ECOS',
+        'max_iters':10000,
+        'centers_selection':'random' # 'kmeans'
+    }
+else:
+    options = {
+        'solver_options':{'method':'SLSQP'},
+        'solver':'ECOS',
+        'max_iters':10000,
+        'centers_selection':'random' # 'kmeans'
+    }
 
 
 # Fit the data --> optimize v /trials/ times with different centers c
-tbc.fit((X,y), (X_test, y_test), trials=150, **options)
+trials = 1
+random_state = 409473 if trials == 1 else 1939671
+two_phase.fit((X,y), (X_test, y_test), trials=trials, random_state=random_state, **options)
 
 
 # Print the required information 
-print(tbc)
+print(two_phase)
 
 
 # Plot the function in (-2,2)x(-3,3)
-tbc.plot()
+two_phase.plot()
 
 
 # Save the trained object
-tbc.save_to_file(file_path='./config/model_q_2_2.pickle')
+two_phase.save_to_file(file_path='./config/model_q_2_2.pickle')
