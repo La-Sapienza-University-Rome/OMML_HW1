@@ -1,14 +1,30 @@
-from classes_and_functions.Q2.two_phase_class import TwoPhaseContext
+"""
+For making the script run:
+- set the parent folder as the current directory
+- run: python ./Question22/run_22_JeDiS.py
+
+NOTE: the data is supposed to be in root_folder/data
+"""
+
+
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from functions.Q2.two_phase_class import TwoPhaseContext
 
 
 
 
 # Read and prepare the data
-df = pd.read_csv('DATA.csv')
+df = pd.read_csv(r'./data/DATA.csv')
 
 train, test = train_test_split(df, test_size=0.255, random_state=1939671)
 
@@ -22,7 +38,7 @@ y_test = np.expand_dims(np.array(test['y']), axis=1)
 
 # Get the object instance
 library = 'cvx' # 'numpy'
-two_phase = TwoPhaseContext(library=library, algorithm='RBF', hyper_param_cfg_file='config/q_1_2_cfg.json')
+two_phase = TwoPhaseContext(library=library, algorithm='RBF', hyper_param_cfg_file=r'./config/q_1_2_cfg.json')
 
 
 # Define the optional parameters. Check classes_and_functions.Q2.two_block.py for details 
@@ -56,4 +72,4 @@ two_phase.plot()
 
 
 # Save the trained object
-two_phase.save_to_file(file_path='./config/model_q_2_2.pickle')
+two_phase.save_to_file(file_path=r'./config/model_q_2_2.pickle')

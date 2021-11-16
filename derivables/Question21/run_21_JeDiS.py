@@ -1,14 +1,28 @@
-from classes_and_functions.Q2.two_phase_class import TwoPhaseContext
+"""
+For making the script run:
+- set the parent folder as the current directory
+- run: python ./Question21/run_21_JeDiS.py
+
+NOTE: the data is supposed to be in root_folder/data
+"""
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
 
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from functions.Q2.two_phase_class import TwoPhaseContext
 
 
 
 
 # Read and prepare the data
-df = pd.read_csv('DATA.csv')
+df = pd.read_csv(r'./data/DATA.csv')
 
 train, test = train_test_split(df, test_size=0.255, random_state=1939671)
 
@@ -27,7 +41,7 @@ if study_distribution:
     import matplotlib.pyplot as plt
     from scipy.stats import norm
 
-    with open('/home/stefano/Desktop/q11_values_for_prediction.pickle', 'rb') as in_file:
+    with open(r'./config/q11_values_for_prediction.pickle', 'rb') as in_file:
         q11_weights = pickle.load(in_file)
 
     x_axis = np.arange(-2, 2, 0.001)
@@ -51,7 +65,7 @@ if study_distribution:
 
 # Get the object instance
 library = 'cvx' # 'numpy'
-tp_context = TwoPhaseContext(library=library, algorithm='MLP', hyper_param_cfg_file='config/q_1_1_cfg.json')
+tp_context = TwoPhaseContext(library=library, algorithm='MLP', hyper_param_cfg_file=r'config/q_1_1_cfg.json')
 
 
 # Define the optional parameters. Check classes_and_functions.Q2.two_block.py for details 
@@ -98,4 +112,4 @@ tp_context.plot()
 
 
 # Save the trained object
-tp_context.save_to_file(file_path='./config/model_q_2_1.pickle')
+tp_context.save_to_file(file_path=r'./config/model_q_2_1.pickle')

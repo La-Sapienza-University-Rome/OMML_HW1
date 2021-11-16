@@ -200,7 +200,7 @@ class Model(abc.ABC):
     def _set_state(self, **kwargs):
         """
         Set the state of the model. Sample W,b,c
-        :param kwargs: variable arguments, see TwoBlocksContext.fit() for details
+        :param kwargs: variable arguments, see TwoPhaseContext.fit() for details
         """
         if self.algorithm == 'MLP':
             lbound_W = kwargs['lbound_W'] if 'lbound_W' in kwargs.keys() else -4

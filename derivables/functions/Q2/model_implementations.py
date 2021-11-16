@@ -11,7 +11,7 @@ import cvxpy as cvx
 from scipy.optimize import minimize
 from tqdm import tqdm
 
-from classes_and_functions.Q2.model_interface import *
+from .model_interface import *
 
 
 
@@ -286,7 +286,7 @@ class ModelNumpy(Model):
             else:
                 self.state = {'best_c': self.c.copy(), 'printable_info':{}}
             self.state['best_v'] = state.x.copy()
-            self.state['seed'] = seed
+            self.state['seed'] = kwargs['seed']
             self.state['printable_info']['Number of neurons N chosen'] = self.N
             self.state['printable_info']['Value of σ chosen'] = self.SIGMA
             self.state['printable_info']['Value of ρ chosen'] = self.RHO

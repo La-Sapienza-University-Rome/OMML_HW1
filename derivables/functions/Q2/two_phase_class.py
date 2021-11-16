@@ -1,4 +1,4 @@
-from classes_and_functions.Q2.model_implementations import *
+from .model_implementations import *
 import pickle
 
 

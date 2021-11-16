@@ -1,4 +1,18 @@
-from classes_and_functions.Q2.two_blocks import *
+"""
+For making the script run:
+- set the parent folder as the current directory
+- run: python ./Question22/Test_22_JeDiS.py
+"""
+
+
+import sys
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
+from functions.Q2.two_phase_class import TwoPhaseContext
+
 
 
 
@@ -10,5 +24,5 @@ def ICanGeneralize(X):
 
     :return
     """
-    tbc = TwoBlocksContext.load_from_file('./config/model_q_2_2.pickle')
-    return tbc.predict(X)
+    two_phase = TwoPhaseContext.load_from_file(r'./config/model_q_2_2.pickle')
+    return two_phase.predict(X)
