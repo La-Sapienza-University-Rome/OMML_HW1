@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 from sklearn.model_selection import KFold
 
-df = pd.read_csv('DATA.csv')
+df = pd.read_csv('../../DATA.csv')
 
 train_df, test_df = train_test_split(df, test_size=0.255, random_state=1939671)
 
@@ -97,14 +97,23 @@ def train(X, y, sigma, N, rho, W, b, v, max_iter=1000,
     
     return res
 
+# Commented is the real grid search used to obtain the best hyper-parameters
+# sigma_grid = [0.5, 1, 1.5]
+# N_grid = [40, 50, 60, 70, 80, 90]
+# rho_grid = np.linspace(1e-5, 1e-3, 3)
+# method_grid = ['CG', 'BFGS', 'L-BFGS-B']
+# k_fold = 5
 
-sigma_grid = [0.5, 1, 1.5]
-N_grid = [40, 50, 60, 70, 80, 90]
+# In order to run the code its best to reduce the grid search
+sigma_grid = [1]
+N_grid = [80, 90]
 rho_grid = np.linspace(1e-5, 1e-3, 3)
-method_grid = ['CG', 'BFGS', 'L-BFGS-B']
+method_grid = ['CG']
+k_fold = 2
+
 iterables = [sigma_grid, N_grid, rho_grid, method_grid]
 min_loss = 10000
-k_fold = 5
+
 
 kf5 = KFold(n_splits=k_fold, shuffle=False)
 
