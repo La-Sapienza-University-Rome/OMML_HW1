@@ -22,9 +22,6 @@ from scipy.stats import truncnorm
 from sklearn.cluster import KMeans
 
 
-np.random.seed(1939671)
-
-
 
 
 class Model(abc.ABC):
@@ -78,13 +75,14 @@ class Model(abc.ABC):
 
     
     @abc.abstractmethod
-    def fit(self, Xy, Xy_test, trials=1, **kwargs):
+    def fit(self, Xy, Xy_test, trials=1, random_state=1939671, **kwargs):
         """
         Run the model /trials/ times on the training data (X,y). Select the best configuration 
         through evaluating the model om the test data (X_test,y_test).
         :param Xy: tuple(X,y)
         :param Xy_test: tuple(X_test,y_test)
         :param trials: number of random samplings
+        :param random_state: best seed or master seed
         :param kwargs: variable parameters; see TwoBlocksContext.fit() for details
         :return self 
         """
@@ -216,11 +214,10 @@ class Model(abc.ABC):
             self.W = truncnorm.rvs(a=lbound_W, b=ubound_W, 
                                     loc=mean_W, scale=std_W, size=(self.X.shape[1], self.N))
             self.b = truncnorm.rvs(a=lbound_b, b=ubound_b, loc=mean_b, scale=std_b, size=(1, self.N))
-                    #np.random.uniform(lbound_b, ubound_b, size=(1, self.N))
         else:
             if kwargs['centers_selection'] == 'random':
                 c_idxs = np.random.choice(np.arange(self.X.shape[0]), 
-                                            size=self.N, replace=False) 
+                                          size=self.N, replace=False) 
                 self.c = self.X[c_idxs].copy()
             else:
                 kmeans = KMeans(n_clusters=self.N, random_state=1939671).fit(self.X)

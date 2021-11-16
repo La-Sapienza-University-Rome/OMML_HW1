@@ -1,5 +1,7 @@
 """
 This file contains the concrete models ModelCVX and ModelNumpy
+
+For the comments to the functions' API, see the model_interface.py
 """
 
 
@@ -10,10 +12,6 @@ from scipy.optimize import minimize
 from tqdm import tqdm
 
 from classes_and_functions.Q2.model_interface import *
-
-
-
-np.random.seed(1939671)
 
 
 
@@ -48,14 +46,20 @@ class ModelCVX(Model):
 
 
 
-    def fit(self, Xy, Xy_test, trials=1, **kwargs):
+    def fit(self, Xy, Xy_test, trials=1, random_state=1939671, **kwargs):
         self.X, self.y = Xy
         X_test, y_test = Xy_test
+        if trials > 1:
+            np.random.seed(random_state)
+            seeds = list(np.random.randint(1, 1e6, size=trials, ))
+        else:
+            seeds = [random_state] 
         max_iters = kwargs['max_iters'] if 'max_iters' in kwargs.keys() else 10000
         solver = kwargs['solver'] if 'solver' in kwargs.keys() else None
         best_test_loss = 1e4
         start = time.time()
-        for _ in tqdm(range(trials)):
+        for seed in tqdm(seeds):
+            np.random.seed(seed)
             self._set_state(**kwargs)
             cvx_problem = cvx.Problem(cvx.Minimize(self.loss(X=self.X, y=self.y, test=False)))
             cvx_problem.solve(solver=solver, verbose=False, max_iters=max_iters)
@@ -63,7 +67,7 @@ class ModelCVX(Model):
             if current_test_loss < best_test_loss:
                 best_test_loss = current_test_loss
                 best_train_loss = self.loss(self.X, self.y, test=True).value # train loss without the regularization term
-                self._save_state(cvx_problem, train_loss=best_train_loss, test_loss=best_test_loss, restore=False)
+                self._save_state(cvx_problem, train_loss=best_train_loss, test_loss=best_test_loss, seed=seed, restore=False)
         stop = time.time()
         self._save_state(None, restore=True, total_elapsed_time=f'{round(stop-start, 3)}s')
         return self
@@ -120,6 +124,7 @@ class ModelCVX(Model):
             else:
                 self.state = {'best_c': self.c.copy(), 'printable_info':{}}
             self.state['best_v'] = np.array(self.v.value).ravel()
+            self.state['seed'] = kwargs['seed']
             self.state['printable_info']['Number of neurons N chosen'] = self.N
             self.state['printable_info']['Value of σ chosen'] = self.SIGMA
             self.state['printable_info']['Value of ρ chosen'] = self.RHO
@@ -171,24 +176,30 @@ class ModelNumpy(Model):
 
 
 
-    def fit(self, Xy, Xy_test, trials=1, **kwargs):
+    def fit(self, Xy, Xy_test, trials=1, random_state=1939671, **kwargs):
         self.X, self.y = Xy
         X_test, y_test = Xy_test
         best_test_loss = 1e4
+        if trials > 1:
+            np.random.seed(random_state)
+            seeds = list(np.random.randint(1, 1e6, size=trials, ))
+        else:
+            seeds = [random_state] 
         if 'solver_options' not in kwargs.keys():
             kwargs['solver_options']['method'] = 'SLSQP'
         start = time.time()
-        for _ in tqdm(range(trials)):
-            t0 = time.time()
+        for seed in tqdm(seeds):
+            np.random.seed(seed)
             self._set_state(**kwargs)
+            t0 = time.time()
             problem_res = minimize(self._loss, self.v, jac=self._gradient, **kwargs['solver_options'])
+            t1 = time.time()
             self.v = np.expand_dims(problem_res.x, axis=1)
             current_test_loss = self.loss(X_test, y_test, test=True)
-            t1 = time.time()
             if current_test_loss < best_test_loss:
                 best_test_loss = current_test_loss
                 best_train_loss = self.loss(self.X, self.y, test=True)
-                self._save_state(problem_res, train_loss=best_train_loss, test_loss=best_test_loss, 
+                self._save_state(problem_res, train_loss=best_train_loss, test_loss=best_test_loss, seed=seed,
                                  solver=kwargs['solver_options']['method'], solver_time=round(t1-t0, 5), restore=False)
         stop = time.time()
         self._save_state(problem_res, restore=True, total_elapsed_time=f'{round(stop-start, 3)}s')
@@ -275,6 +286,7 @@ class ModelNumpy(Model):
             else:
                 self.state = {'best_c': self.c.copy(), 'printable_info':{}}
             self.state['best_v'] = state.x.copy()
+            self.state['seed'] = seed
             self.state['printable_info']['Number of neurons N chosen'] = self.N
             self.state['printable_info']['Value of σ chosen'] = self.SIGMA
             self.state['printable_info']['Value of ρ chosen'] = self.RHO
