@@ -173,7 +173,7 @@ if full_grid_search:
 
 else:
     sigma = 1
-    N = 80
+    N = 70
     rho = 1e-5
     method = 'CG'
 
