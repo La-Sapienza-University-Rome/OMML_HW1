@@ -68,7 +68,7 @@ print(two_phase)
 
 
 # Plot the function in (-2,2)x(-3,3)
-two_phase.plot()
+#two_phase.plot()
 
 
 # Save the trained object

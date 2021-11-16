@@ -1,9 +1,9 @@
 """
 For making the script run:
-- set the parent folder as the current directory
+- set the JeDiS_HW1 folder as the current directory
 - run: python ./Question21/run_21_JeDiS.py
 
-NOTE: the data is supposed to be in root_folder/data
+NOTE: the data is supposed to be in JeDiS_HW1/data/DATA.csv
 """
 
 import pandas as pd
@@ -108,7 +108,7 @@ print(tp_context)
 
 
 # Plot the function in (-2,2)x(-3,3)
-tp_context.plot()
+#tp_context.plot()
 
 
 # Save the trained object

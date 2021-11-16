@@ -540,7 +540,7 @@ dict = {"W": best_W,
         "v": best_v,
         "sigma": sigma_best }
 
-with open('derivables/Question3/q3_values_for_prediction.pickle', 'wb') as handle:
+with open('JeDiS_HW1/Question3/q3_values_for_prediction.pickle', 'wb') as handle:
     pickle.dump(dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
