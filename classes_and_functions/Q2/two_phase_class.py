@@ -6,7 +6,7 @@ import pickle
 
 
 
-class TwoBlocksContext:
+class TwoPhaseContext:
     """
     Context class for the Question 2, internally selects the library (CVXPY or Numpy) and 
     the algorithm (MLP or RBF) and provides a unique API to the client.
@@ -35,7 +35,7 @@ class TwoBlocksContext:
 
         :param file_path: path to the object file
 
-        :return new TwoBlocksContext instance 
+        :return new TwoPhaseContext instance 
         """
         with open(file_path, 'rb') as in_file:
             obj = pickle.load(in_file)
@@ -138,7 +138,7 @@ class TwoBlocksContext:
         """
         Plot the function in (-2,2)x(-3,3).
         """
-        self.model.plot(f'Two-blocks method {self.model.algorithm}')
+        self.model.plot(f'Two-Phase method {self.model.algorithm}')
         
 
     
