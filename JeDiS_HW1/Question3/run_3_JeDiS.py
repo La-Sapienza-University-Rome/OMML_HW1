@@ -1,3 +1,12 @@
+"""
+For making the script run:
+- set the JeDiS_HW1 folder as the current directory
+- run: python ./Question3/run_3_JeDiS.py
+
+NOTE: the data is supposed to be in JeDiS_HW1/data/DATA.csv
+"""
+
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -8,7 +17,7 @@ from tqdm import tqdm
 import os
 import sys
 parentdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-change = parentdir + r'\functions'
+change = parentdir + r'/functions'
 sys.path.append(change)
 from functions_q3 import *
 import json
@@ -18,7 +27,7 @@ seed = 1939671
 np.random.seed(seed)
 
 # Load data set
-df = pd.read_csv('../../DATA.csv')
+df = pd.read_csv(r'./data/DATA.csv')
 
 # Split data in train and test
 train, test = train_test_split(df, test_size=0.25, random_state=seed)

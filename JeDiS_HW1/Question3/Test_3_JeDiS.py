@@ -1,15 +1,24 @@
+"""
+For making the script run:
+- set the JeDiS_HW1 folder as the current directory
+- run: python ./Question3/Test_3_JeDiS.py
+
+NOTE: the data is supposed to be in JeDiS_HW1/data/DATA.csv
+"""
+
+
 import numpy as np
 import os
 import sys
 parentdir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-change = parentdir + r'\functions'
+change = parentdir + r'/functions'
 sys.path.append(change)
 from functions_q3 import *
 import pickle
 import pandas as pd
 
 # Load data set (change here by the desired one)
-X_test = pd.read_csv('../../DATA.csv')
+X_test = pd.read_csv(r'./data/DATA.csv')
 X_test = np.array(X_test[['x1', 'x2']])
 
 def ICanGeneralize(x_new):
@@ -22,7 +31,7 @@ def ICanGeneralize(x_new):
     """
 
     # Load the parameters needed
-    with open('q3_values_for_prediction.pickle', 'rb') as handle:
+    with open(r'./Question3/q3_values_for_prediction.pickle', 'rb') as handle:
         dict = pickle.load(handle)
     W = dict['W']
     b = dict['b']
